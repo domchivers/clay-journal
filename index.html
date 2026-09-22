@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f1ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1f1a17" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Clay Journal">
+<title>Clay Journal</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png?v=1">
+<link rel="apple-touch-icon" href="icons/icon-180.png?v=1">
+<link rel="stylesheet" href="styles.css?v=1">
+</head>
+<body>
+<header class="top">
+  <button id="back" class="icon-btn" aria-label="Back" hidden><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <h1 id="title">Clay Journal</h1>
+  <span id="sync" class="sync local"></span>
+  <button id="lang" class="lang">中</button>
+</header>
+<main id="main"></main>
+<nav id="tabs" class="tabs"></nav>
+<div id="sheet" class="sheet" hidden></div>
+<div id="toast" class="toast" hidden></div>
+<script src="i18n.js?v=1"></script>
+<script src="supabase-config.js?v=1"></script>
+<script src="cloud.js?v=1"></script>
+<script src="store.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>
