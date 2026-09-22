@@ -801,7 +801,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "1";
+const APP_VERSION = "2";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#lang").addEventListener("click", () => { SETTINGS.lang = LANG === "zh" ? "en" : "zh"; saveSettings(); setLang(SETTINGS.lang); render(true); if (SHEET) drawSheet(); });
@@ -813,4 +813,32 @@ render();
 Sync.run();
 setInterval(() => { if (document.visibilityState === "visible") Sync.run(); }, 5 * 60000);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") Sync.run(); });
-if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("sw.js").catch(() => {});
+// ---------- no zooming: iOS ignores user-scalable=no, so stop pinch gestures here too
+["gesturestart", "gesturechange", "gestureend"].forEach((ev) => document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
+document.addEventListener("touchmove", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+
+// ---------- always the latest version
+// The service worker fetches fresh files on every open. A home-screen app often isn't opened
+// fresh though, just brought back from the background, so on return we compare the server's
+// file fingerprints with the ones we started with and reload if anything was published.
+const APP_FILES = ["index.html", "app.js", "store.js", "i18n.js", "cloud.js", "styles.css", "sw.js"];
+async function fingerprint() {
+  const tags = await Promise.all(APP_FILES.map((f) => fetch(f, { method: "HEAD", cache: "no-store" })
+    .then((r) => r.ok ? (r.headers.get("etag") || r.headers.get("last-modified") || "") : "").catch(() => null)));
+  return tags.includes(null) ? null : tags.join("|");   // null: offline, can't tell
+}
+let startPrint = null, hiddenAt = 0;
+const canUpdate = location.protocol === "https:" || location.hostname === "localhost";
+if ("serviceWorker" in navigator && canUpdate) {
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
+  fingerprint().then((f) => { startPrint = f; });
+}
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "hidden") { hiddenAt = now(); return; }
+  if (!canUpdate || now() - hiddenAt < 15000) return;
+  navigator.serviceWorker && navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {});
+  const f = await fingerprint();
+  if (!f) return;
+  if (!startPrint) { startPrint = f; return; }
+  if (f !== startPrint) { persist(); location.reload(); }
+});

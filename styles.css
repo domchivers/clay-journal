@@ -16,7 +16,9 @@
   }
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+/* App feel: no pinch or double-tap zoom, no sideways panning, no rubber-band pull on the page. */
+html, body { overflow-x: hidden; overscroll-behavior: none; touch-action: manipulation; }
+html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;

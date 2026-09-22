@@ -24,8 +24,14 @@ No build step. Double-click `start.bat` and open the address it prints on the ph
 (same Wi-Fi). For **Add to Home Screen** and offline use it needs HTTPS, so the real
 home is GitHub Pages.
 
-When changing files, bump the `?v=` numbers in `index.html` and `sw.js` and the
-`CACHE` name in `sw.js`, otherwise installed phones keep the old copy.
+Installed phones update themselves: the service worker is network-first, so every
+open loads the latest files (falling back to the cached copy offline or after 4 s of
+slow Wi-Fi), and when the app comes back from the background it checks the server's
+file fingerprints and reloads if anything was published. Bumping the `?v=` numbers
+and `CACHE` in `sw.js` is still good hygiene but no longer required.
+
+Zoom is locked (viewport, `touch-action`, and a pinch blocker for iOS, which ignores
+`user-scalable=no`), and the page can't pan sideways or rubber-band.
 
 ## Accounts, sync and photos
 

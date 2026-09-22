@@ -1,16 +1,31 @@
-/* Service worker: caches the app so it opens offline once installed.
- * Only registers over HTTPS or localhost. Bump CACHE and the ?v= numbers when app files change. */
-const CACHE = "clay-v1";
-const ASSETS = ["./", "./index.html", "./styles.css?v=1", "./i18n.js?v=1", "./supabase-config.js?v=1", "./cloud.js?v=1", "./store.js?v=1", "./app.js?v=1", "./manifest.webmanifest", "./icons/icon-192.png?v=1", "./icons/icon-180.png?v=1"];
+/* Service worker: NETWORK FIRST, so every open picks up the latest version straight away.
+ * Each fresh copy is also kept in the cache, which is what the app runs from when offline
+ * (or when the studio Wi-Fi is too slow to answer within a few seconds).
+ * Only registers over HTTPS or localhost. */
+const CACHE = "clay-v2";
+const ASSETS = ["./", "./index.html", "./styles.css?v=2", "./i18n.js?v=2", "./supabase-config.js?v=2", "./cloud.js?v=2", "./store.js?v=2", "./app.js?v=2", "./manifest.webmanifest", "./icons/icon-192.png?v=1", "./icons/icon-180.png?v=1"];
+const SLOW_MS = 4000;
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
-  if (url.origin !== location.origin) return;   // Supabase goes straight to the network
-  e.respondWith(caches.match(e.request, { ignoreSearch: url.pathname.endsWith("/") }).then((hit) => hit || fetch(e.request)));
+  const req = e.request;
+  const url = new URL(req.url);
+  if (req.method !== "GET" || url.origin !== location.origin) return;   // Supabase goes straight to the network
+  const fromNet = fetch(req, { cache: "no-cache" }).then((res) => {   // no-cache: always ask the server, skip the browser's 10-minute copy
+    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+    return res;
+  });
+  const fromCache = () => caches.match(req, { ignoreSearch: url.pathname.endsWith("/") || url.pathname.endsWith(".html") });
+  e.respondWith(new Promise((resolve) => {
+    let done = false;
+    const finish = (r) => { if (!done && r) { done = true; resolve(r); } };
+    const timer = setTimeout(() => fromCache().then(finish), SLOW_MS);   // slow network: use the cached copy, the fresh one still lands in the cache
+    fromNet.then((r) => { clearTimeout(timer); finish(r); })
+      .catch(() => fromCache().then((r) => finish(r || Response.error())));
+  }));
 });
