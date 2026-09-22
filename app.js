@@ -438,6 +438,9 @@ VIEWS.settings = () => {
     <p class="meta">${t("set.stats", { p: Object.keys(DB.pieces).length, f: Object.keys(DB.firings).length, d: Object.keys(DB.designs).length, i: Object.keys(DB.insps).length })}</p>
     <div class="row"><button class="btn" data-act="export">${t("set.export")}</button>
       <label class="btn">${t("set.import")}<input type="file" accept="application/json,.json" hidden data-import></label></div>
+    <h3>${t("set.update")}</h3>
+    <p class="meta">${t("set.updateHint")}</p>
+    <button class="btn" data-act="force-update">${t("set.forceUpdate")}</button>
     <p class="meta ver">v${APP_VERSION}</p>
   </div>`;
 };
@@ -714,6 +717,7 @@ document.addEventListener("click", async (e) => {
     case "sign-in": case "sign-up": case "forgot": return onAuth(e, act);
     case "sign-out": await cloud.signOut(); Sync.reset(); render(true); return;
     case "export": return onExport();
+    case "force-update": return forceUpdate(el);
   }
 });
 
@@ -784,6 +788,19 @@ async function onAuth(e, act) {
   } catch (err) { toast(cloud.explain(err)); }
 }
 
+/** Throw away the cached app (never the data: records and photos live in localStorage and
+ * IndexedDB, which this doesn't touch) and load everything fresh from the server. */
+async function forceUpdate(btn) {
+  btn.disabled = true; btn.textContent = t("set.updating");
+  persist();
+  try {
+    if ("serviceWorker" in navigator) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+    if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
+    await Promise.all(APP_FILES.map((f) => fetch(f, { cache: "reload" }).catch(() => {})));   // refresh the browser's own copy too
+  } catch (e) {}
+  location.replace(location.pathname + "?u=" + now() + location.hash);
+}
+
 function onExport() {
   const blob = new Blob([JSON.stringify(DB, null, 1)], { type: "application/json" });
   const a = document.createElement("a");
@@ -801,7 +818,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "2";
+const APP_VERSION = "3";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#lang").addEventListener("click", () => { SETTINGS.lang = LANG === "zh" ? "en" : "zh"; saveSettings(); setLang(SETTINGS.lang); render(true); if (SHEET) drawSheet(); });
@@ -810,6 +827,10 @@ Sync.onChange(paintSync);
 if (window.cloud) cloud.onAuth(() => paintSync());
 ROUTE = parseRoute();
 render();
+if (/[?&]u=/.test(location.search)) {   // just back from Force update: tidy the address and say so
+  history.replaceState(null, "", location.pathname + location.hash);
+  toast(`${t("set.updated")} · v${APP_VERSION}`);
+}
 Sync.run();
 setInterval(() => { if (document.visibilityState === "visible") Sync.run(); }, 5 * 60000);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") Sync.run(); });

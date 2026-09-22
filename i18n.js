@@ -63,6 +63,8 @@ const STRINGS = {
     "set.currency": "Currency symbol", "set.unit": "Default unit", "set.lists": "Your lists",
     "set.listTags": "Category tags", "set.listClay": "Clay types", "set.listGlazes": "Glazes", "set.listChannels": "Channels",
     "set.backup": "Backup", "set.export": "Export all data (JSON)", "set.import": "Import from JSON", "set.imported": "Imported and merged.",
+    "set.update": "App version", "set.forceUpdate": "Force update", "set.updating": "Updating…", "set.updated": "Up to date",
+    "set.updateHint": "The app updates itself when it opens. If something still looks old, this reloads it fresh from the server. Your pieces and photos aren't touched.",
     "set.pending": "{n} photos waiting to upload", "set.stats": "{p} pieces · {f} firings · {d} designs · {i} inspiration",
 
     "sync.offline": "Offline: changes are saved on this phone", "sync.syncing": "Syncing…", "sync.ok": "Synced", "sync.err": "Sync failed: {msg}",
@@ -127,6 +129,8 @@ const STRINGS = {
     "set.currency": "货币符号", "set.unit": "默认单位", "set.lists": "我的列表",
     "set.listTags": "分类标签", "set.listClay": "泥料", "set.listGlazes": "釉料", "set.listChannels": "渠道",
     "set.backup": "备份", "set.export": "导出全部数据（JSON）", "set.import": "从 JSON 导入", "set.imported": "已导入并合并。",
+    "set.update": "应用版本", "set.forceUpdate": "强制更新", "set.updating": "正在更新…", "set.updated": "已是最新版本",
+    "set.updateHint": "应用打开时会自动更新。如果看起来还是旧版本，点这里从服务器重新加载。作品和照片都不会受影响。",
     "set.pending": "{n} 张照片等待上传", "set.stats": "{p} 件作品 · {f} 次烧制 · {d} 个设计 · {i} 条灵感",
 
     "sync.offline": "离线：改动已保存在这台手机上", "sync.syncing": "同步中…", "sync.ok": "已同步", "sync.err": "同步失败：{msg}",
