@@ -10,13 +10,14 @@
 "use strict";
 
 const LS_DB = "clay.db.v1", LS_SETTINGS = "clay.settings.v1";
-const COLLECTIONS = ["pieces", "firings", "designs", "insps"];
-const LISTS = ["tags", "clay", "glazes", "channels"];
+const COLLECTIONS = ["pieces", "firings", "designs", "insps", "purchases", "shapes"];
+const LISTS = ["tags", "clay", "glazes", "channels", "studios"];
 const DEFAULT_LISTS = {
   tags: ["cup", "plate", "bowl", "vase", "marbled", "coffee_cup"],
   clay: ["white", "red", "black", "stoneware", "porcelain"],
   glazes: [],
-  channels: ["instagram", "xhs", "inperson", "market"]
+  channels: ["instagram", "xhs", "inperson", "market"],
+  studios: []
 };
 const TOMBSTONE_DAYS = 90;
 
@@ -27,7 +28,9 @@ const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOff
 function emptyDB() {
   const lists = {};
   for (const l of LISTS) { lists[l] = {}; DEFAULT_LISTS[l].forEach((v, i) => { lists[l][v] = i + 1; }); }   // tiny times: any real edit beats a default
-  return { v: 1, pieces: {}, firings: {}, designs: {}, insps: {}, lists, deleted: {} };
+  const out = { v: 2, lists, deleted: {} };
+  for (const c of COLLECTIONS) out[c] = {};
+  return out;
 }
 function normalise(d) {
   const e = emptyDB();

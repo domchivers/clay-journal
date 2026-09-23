@@ -17,8 +17,17 @@ plain rows instead of boxes, and the previous panelled design kept on the
   with its own shrinkage worked out.
 - **Gallery**: every photo from every piece, filterable by stage, tag, technique,
   sale status, outcome and date.
-- **Firings**: one record per kiln run, many pieces per firing. Pick one or create
-  one straight from a piece's bisque or glaze stage; linking is always optional.
+- **Costs**: log what you paid for a bag of clay or a tub of glaze and every piece is
+  costed from what it actually used, at the average rate you've paid. A communal
+  firing's fee and travel are split equally between the pieces in it, and each piece's
+  Cost tab shows the breakdown, any extra cost, the asking or sale price and the profit.
+- **Firings**: home kiln or communal kiln. A communal trip records the studio, the fee,
+  travel, the date sent and the date collected, and which pieces went.
+- **Shapes**: a piece is a mug, bowl, plate, vase, box, something irregular, or a shape
+  of your own with the measurements you name; the app then asks for those measurements
+  at every stage. Greenware records size as thrown and again after trimming.
+  Pick one from a piece's bisque or glaze stage or create it there; linking is
+  always optional.
 - **Ideas**: Designs (a Procreate export, or just a written idea) and Inspiration
   (screenshots, photos, where they came from, notes). Pieces link to the design
   they came from and any inspiration used.

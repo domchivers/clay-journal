@@ -112,9 +112,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--i
 .title-in:focus { outline: none; }
 select.unit { width: auto; min-height: 34px; padding: 4px 8px; border-color: transparent; color: var(--muted); font-size: 14px; }
 .dims { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.dims label { position: relative; }
-.dims label span { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--muted); pointer-events: none; }
-.dims input { padding-left: 30px; }
+.dims label { display: block; }
+.dims label span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* chips */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -269,6 +268,15 @@ img.missing { background: repeating-linear-gradient(45deg, var(--soft), var(--so
 .mini.add { display: grid; place-items: center; border: 1px solid var(--line); background: none; color: var(--faint); cursor: pointer; }
 .mini .over { position: absolute; top: 0; right: 0; width: 28px; height: 28px; background: rgba(20, 16, 12, .5); color: #fff; border-radius: 0 0 0 8px; }
 .mini .over svg { width: 15px; height: 15px; }
+
+.costs { margin: 4px 0 14px; }
+.costrow { display: flex; align-items: baseline; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.costrow i { font-style: normal; font-size: 12.5px; color: var(--faint); }
+.costrow b { margin-left: auto; font-weight: 550; }
+.costrow.total { border-bottom: 0; font-weight: 600; }
+.costrow.total b { font-size: 17px; }
+.card > b { margin-left: auto; font-weight: 550; }
+.dims { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
 
 /* gallery + tiles */
 .filters .fgroup:last-child { margin-bottom: 0; }
