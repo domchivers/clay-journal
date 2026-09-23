@@ -25,6 +25,9 @@ plain rows instead of boxes, and the previous panelled design kept on the
 
 Every number is optional: log the wet stage today and fill in bisque numbers next week.
 
+In the pieces list, swipe a row left to uncover **Delete** (it still asks first);
+tap the row again to put it back.
+
 ## Running it
 
 No build step. Double-click `start.bat` and open the address it prints on the phone

@@ -144,9 +144,9 @@ function empty(text) { return `<p class="empty">${esc(text)}</p>`; }
 const ICON = {
   pieces: '<svg viewBox="0 0 24 24"><path d="M9 3h6M9.5 3l-.4 2.6a4 4 0 0 1-.9 2L7 9.4A6.5 6.5 0 0 0 5.6 13v4.5A3.5 3.5 0 0 0 9.1 21h5.8a3.5 3.5 0 0 0 3.5-3.5V13a6.5 6.5 0 0 0-1.4-3.6l-1.2-1.8a4 4 0 0 1-.9-2L14.5 3"/></svg>',
   gallery: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5l4.7-4.2a2 2 0 0 1 2.7 0l3.3 3M14 15.2l1.9-1.6a2 2 0 0 1 2.6 0l2 1.7"/></svg>',
-  firings: '<svg viewBox="0 0 24 24"><path d="M4.5 9.5a7.5 7.5 0 0 1 15 0v9.2a1.3 1.3 0 0 1-1.3 1.3H5.8a1.3 1.3 0 0 1-1.3-1.3z"/><path d="M4.7 8h14.6M9 20v-4.2a3 3 0 0 1 6 0V20"/><path d="M12 4.6c.2 1.3 1.2 1.7 1.2 2.8a1.2 1.2 0 0 1-2.4 0c0-.6.3-1 .6-1.3"/></svg>',
+  firings: '<svg viewBox="0 0 24 24"><path d="M12.6 2.4c.3 2.6 1.7 3.7 3 5.2a7 7 0 0 1 1.8 4.7 5.4 5.4 0 0 1-10.8 0c0-1.7.7-3 1.7-4 .2 1.2.8 1.9 1.6 2.1-.6-3 .5-5.8 2.7-8z"/><path d="M12 21a2.7 2.7 0 0 1-2.7-2.7c0-1.6 1.5-2.3 2.7-4.1 1.2 1.8 2.7 2.5 2.7 4.1A2.7 2.7 0 0 1 12 21z"/></svg>',
   more: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
-  settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.4l1.3 2.2 2.5-.4.5 2.5 2.2 1.3-1.4 2.1 1.4 2.1-2.2 1.3-.5 2.5-2.5-.4L12 20.6l-1.3-2.2-2.5.4-.5-2.5L5.5 15l1.4-2.1L5.5 10.8 7.7 9.5l.5-2.5 2.5.4z"/></svg>',
+  settings: '<svg viewBox="0 0 24 24"><path d="M4 7.5h4.5M13.5 7.5H20M4 16.5h6.5M15.5 16.5H20"/><circle cx="11" cy="7.5" r="2.4"/><circle cx="13" cy="16.5" r="2.4"/></svg>',
   ideas: '<svg viewBox="0 0 24 24"><path d="M9.5 18h5M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2h5c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></svg>',
   camera: '<svg viewBox="0 0 24 24"><path d="M3.5 8.5h3.2l1.6-2.6h7.4l1.6 2.6h3.2v10.6H3.5z"/><circle cx="12" cy="13.6" r="3.4"/></svg>',
   image: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5l4.7-4.2a2 2 0 0 1 2.7 0l3.3 3M14 15.2l1.9-1.6a2 2 0 0 1 2.6 0l2 1.7"/></svg>',
@@ -194,12 +194,13 @@ function pieceCard(p) {
     : s.status === "for" ? `${t("sale.for")}${has(s.ask) ? " " + money(s.ask) : ""}`
     : p.final && p.final.outcome && p.final.outcome !== "success" ? t("outcome." + p.final.outcome) : dateText(p.started)].filter(Boolean).join(" · ");
   const hay = [p.title, p.notes, ...(p.tags || []).map((x) => label("tag", x)), ...(p.technique || []).map((x) => label("tech", x)), ...((p.glaze && p.glaze.glazes) || [])].join(" ").toLowerCase();
-  return `<a class="card piece" href="#/piece/${esc(p.id)}" data-hay="${esc(hay)}">
+  return `<div class="swipe" data-hay="${esc(hay)}"><button class="swipe-del" data-act="swipe-delete" data-id="${esc(p.id)}">${t("btn.delete")}</button>
+    <a class="card piece" href="#/piece/${esc(p.id)}">
     ${img(coverOf(p), "thumb")}
     <div class="card-body">
       <div class="card-title">${esc(pieceName(p))}</div>
       <div class="meta"><i class="dot st-${st}"></i>${esc(line)}</div>
-    </div></a>`;
+    </div></a></div>`;
 }
 
 /* A piece is one stage at a time: the tabs across the top swap what's below them, so only
@@ -630,7 +631,7 @@ document.addEventListener("input", (e) => {
   const el = e.target;
   if (el.dataset.search !== undefined) {
     const q = el.value.trim().toLowerCase();
-    $$(".card.piece[data-hay]").forEach((c) => { c.hidden = q && !c.dataset.hay.includes(q); });
+    $$("[data-hay]").forEach((c) => { c.hidden = q && !c.dataset.hay.includes(q); });
     return;
   }
   if (!el.dataset.f || el.tagName === "SELECT") return;
@@ -707,6 +708,11 @@ document.addEventListener("click", async (e) => {
     case "new-design": { const d = newRecord("designs", { status: "concept" }); save(); go("#/design/" + d.id); return; }
     case "new-insp": { const x = newRecord("insps", { tags: [] }); save(); go("#/insp/" + x.id); return; }
     case "design-from-insp": { const d = newRecord("designs", { status: "concept", inspId: ROUTE.id }); save(); go("#/design/" + d.id); return; }
+    case "swipe-delete": {
+      const p = DB.pieces[el.dataset.id];
+      if (!p || !confirm(`${t("confirm.deletePiece")}\n\n${pieceName(p)}`)) { closeSwipe(); return; }
+      removeRecord("pieces", p.id); save(); closeSwipe(); render(true); return;
+    }
     case "piece-filter": PIECE_FILTER = el.dataset.val; render(true); return;
     case "piece-tab": PIECE_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
     case "ideas-tab": SETTINGS.ideasTab = el.dataset.val; saveSettings(); render(); return;
@@ -773,6 +779,51 @@ document.addEventListener("click", async (e) => {
     case "force-update": return forceUpdate(el);
   }
 });
+
+/* Swipe a row left to uncover its Delete button; a tap anywhere else puts it back.
+ * Rows only follow horizontal drags, so scrolling the list still works normally. */
+const SWIPE_W = 92;
+let swipeOpen = null, swipeBox = null, swipeX = 0, swipeY = 0, swipeDir = null, swipeAt = 0;
+function closeSwipe() {
+  if (swipeOpen) { swipeOpen.classList.remove("open"); swipeOpen.querySelector(".card").style.transform = ""; swipeOpen = null; }
+}
+document.addEventListener("touchstart", (e) => {
+  const box = e.target.closest(".swipe");
+  if (swipeOpen && swipeOpen !== box) closeSwipe();
+  if (!box || e.touches.length !== 1) return;
+  swipeBox = box; swipeX = e.touches[0].clientX; swipeY = e.touches[0].clientY; swipeDir = null;
+  swipeAt = box.classList.contains("open") ? -SWIPE_W : 0;
+}, { passive: true });
+document.addEventListener("touchmove", (e) => {
+  if (!swipeBox || e.touches.length !== 1) return;
+  const dx = e.touches[0].clientX - swipeX, dy = e.touches[0].clientY - swipeY;
+  if (!swipeDir) {
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    swipeDir = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    if (swipeDir === "x") swipeBox.classList.add("dragging");
+  }
+  if (swipeDir !== "x") return;
+  const start = swipeBox.classList.contains("open") ? -SWIPE_W : 0;
+  swipeAt = Math.max(-SWIPE_W - 20, Math.min(0, start + dx));
+  swipeBox.querySelector(".card").style.transform = `translateX(${swipeAt}px)`;
+}, { passive: true });
+document.addEventListener("touchend", () => {
+  if (!swipeBox) return;
+  const box = swipeBox; swipeBox = null;
+  box.classList.remove("dragging");
+  box.querySelector(".card").style.transform = "";
+  if (swipeDir !== "x") return;
+  const wasOpen = box === swipeOpen;
+  closeSwipe();
+  if (swipeAt <= -SWIPE_W / 2 || (wasOpen && swipeAt < -SWIPE_W / 2)) { box.classList.add("open"); swipeOpen = box; }
+}, { passive: true });
+/* A tap on an open row closes it instead of opening the piece. */
+document.addEventListener("click", (e) => {
+  if (!swipeOpen) return;
+  if (e.target.closest(".swipe-del")) return;
+  if (e.target.closest(".swipe") === swipeOpen) { e.preventDefault(); e.stopPropagation(); }
+  closeSwipe();
+}, true);
 
 function onChip(el, rec) {
   const group = el.dataset.group, val = el.dataset.val, single = el.dataset.single !== undefined;
@@ -871,7 +922,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "11";
+const APP_VERSION = "12";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });

@@ -154,6 +154,15 @@ select.unit { width: auto; min-height: 34px; padding: 4px 8px; border-color: tra
 .tile .ds-concept::before { background: var(--faint); } .tile .ds-attempted::before { background: var(--bisque); } .tile .ds-completed::before { background: var(--final); }
 
 /* lists */
+.swipe { position: relative; overflow: hidden; }
+.swipe + .swipe .card { border-top: 0; }
+.swipe .card { background: var(--card); transition: transform .18s ease; touch-action: pan-y; position: relative; z-index: 1; }
+.swipe.dragging .card { transition: none; }
+.swipe.open .card { transform: translateX(-92px); }
+.swipe-del {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 92px; border: 0; z-index: 0;
+  background: var(--danger); color: #fff; font: inherit; font-size: 14px; font-weight: 550; cursor: pointer;
+}
 .toolbar { display: flex; flex-direction: column; gap: 8px; padding: 4px 20px 2px; }
 .search { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--muted); }
 .search input { border: 0; background: none; padding: 10px 0; }
