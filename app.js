@@ -142,17 +142,20 @@ function uploadBtn(target, capture, text) {
 function empty(text) { return `<p class="empty">${esc(text)}</p>`; }
 
 const ICON = {
-  pieces: '<svg viewBox="0 0 24 24"><path d="M7 4h10l-1 3c2 2 3 5 3 8a7 7 0 0 1-14 0c0-3 1-6 3-8z"/></svg>',
-  gallery: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>',
-  firings: '<svg viewBox="0 0 24 24"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></svg>',
-  ideas: '<svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c1 1 1.5 2 1.5 3h5c0-1 .5-2 1.5-3A6 6 0 0 0 12 3z"/></svg>',
-  settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
-  camera: '<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
-  image: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/></svg>',
-  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
-  back: '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
-  x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
-  filter: '<svg viewBox="0 0 24 24"><path d="M4 5h16l-6 8v5l-4 2v-7z"/></svg>'
+  pieces: '<svg viewBox="0 0 24 24"><path d="M9 3h6M9.5 3l-.4 2.6a4 4 0 0 1-.9 2L7 9.4A6.5 6.5 0 0 0 5.6 13v4.5A3.5 3.5 0 0 0 9.1 21h5.8a3.5 3.5 0 0 0 3.5-3.5V13a6.5 6.5 0 0 0-1.4-3.6l-1.2-1.8a4 4 0 0 1-.9-2L14.5 3"/></svg>',
+  gallery: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5l4.7-4.2a2 2 0 0 1 2.7 0l3.3 3M14 15.2l1.9-1.6a2 2 0 0 1 2.6 0l2 1.7"/></svg>',
+  firings: '<svg viewBox="0 0 24 24"><path d="M12 2.8c.4 3.1 2.2 4 3.5 5.6a6.5 6.5 0 0 1 1.6 4.3 5.1 5.1 0 0 1-10.2 0c0-1.5.6-2.8 1.6-3.8.2 1.4.9 2.2 1.8 2.4-.4-3 .3-5.6 1.7-8.5z"/><path d="M12 20.6a2.4 2.4 0 0 1-2.4-2.4c0-1.4 1.3-2 2.4-3.6 1.1 1.6 2.4 2.2 2.4 3.6a2.4 2.4 0 0 1-2.4 2.4z"/></svg>',
+  more: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
+  settings: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
+  ideas: '<svg viewBox="0 0 24 24"><path d="M9.5 18h5M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2h5c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></svg>',
+  camera: '<svg viewBox="0 0 24 24"><path d="M3.5 8.5h3.2l1.6-2.6h7.4l1.6 2.6h3.2v10.6H3.5z"/><circle cx="12" cy="13.6" r="3.4"/></svg>',
+  image: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5l4.7-4.2a2 2 0 0 1 2.7 0l3.3 3M14 15.2l1.9-1.6a2 2 0 0 1 2.6 0l2 1.7"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></svg>',
+  back: '<svg viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>',
+  x: '<svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
+  search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.6"/><path d="M19.5 19.5l-3.8-3.8"/></svg>',
+  chevron: '<svg viewBox="0 0 24 24"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>',
+  filter: '<svg viewBox="0 0 24 24"><path d="M4.5 6.5h15M7 12h10M10 17.5h4"/></svg>'
 };
 
 // ---------- routing
@@ -167,8 +170,8 @@ function parseRoute() {
 const go = (h) => { location.hash = h; };
 window.addEventListener("hashchange", () => { ROUTE = parseRoute(); closeSheet(); render(); window.scrollTo(0, 0); });
 
-const TABS = ["pieces", "gallery", "firings", "ideas", "settings"];
-const TAB_OF = { piece: "pieces", firing: "firings", design: "ideas", insp: "ideas" };
+const TABS = ["pieces", "gallery", "firings", "more"];
+const TAB_OF = { piece: "pieces", firing: "firings", design: "more", insp: "more", ideas: "more", settings: "more" };
 
 // ---------- views
 const VIEWS = {};
@@ -179,122 +182,137 @@ VIEWS.pieces = () => {
   const shown = all.filter((p) => PIECE_FILTER === "all" ? true : STAGES.includes(PIECE_FILTER) ? stageOf(p) === PIECE_FILTER : (p.sale && p.sale.status) === PIECE_FILTER);
   const fl = (v) => v === "all" ? (LANG === "zh" ? "全部" : "All") : STAGES.includes(v) ? t("stage." + v) : t("sale." + v);
   return `
-    ${all.length ? `<div class="toolbar"><input type="search" class="search" data-search placeholder="${t("search")}">
-      <div class="chips scroll">${filters.map((v) => `<button class="chip" data-act="piece-filter" data-val="${v}" aria-pressed="${PIECE_FILTER === v}">${esc(fl(v))}</button>`).join("")}</div></div>` : ""}
+    ${all.length ? `<div class="toolbar"><label class="search">${ICON.search}<input type="search" data-search placeholder="${t("search")}"></label>
+      <div class="wordtabs">${filters.map((v) => `<button data-act="piece-filter" data-val="${v}" aria-pressed="${PIECE_FILTER === v}">${esc(fl(v))}</button>`).join("")}</div></div>` : ""}
     <div class="cards">${shown.map(pieceCard).join("") || empty(all.length ? t("empty.gallery") : t("empty.pieces"))}</div>
     <div class="fab">${`<label class="fab-cam" aria-label="${t("btn.takePhoto")}"><input type="file" accept="image/*" capture="environment" hidden data-upload="newpiece">${ICON.camera}</label>`}
       <button class="btn primary" data-act="new-piece">${ICON.plus} ${t("btn.newPiece")}</button></div>`;
 };
 function pieceCard(p) {
   const st = stageOf(p), s = p.sale || {};
+  const line = [t("stage." + st), s.status === "sold" ? `${t("sale.sold")}${has(s.price) || has(s.ask) ? " " + money(has(s.price) ? s.price : s.ask) : ""}`
+    : s.status === "for" ? `${t("sale.for")}${has(s.ask) ? " " + money(s.ask) : ""}`
+    : p.final && p.final.outcome && p.final.outcome !== "success" ? t("outcome." + p.final.outcome) : dateText(p.started)].filter(Boolean).join(" · ");
   const hay = [p.title, p.notes, ...(p.tags || []).map((x) => label("tag", x)), ...(p.technique || []).map((x) => label("tech", x)), ...((p.glaze && p.glaze.glazes) || [])].join(" ").toLowerCase();
   return `<a class="card piece" href="#/piece/${esc(p.id)}" data-hay="${esc(hay)}">
     ${img(coverOf(p), "thumb")}
     <div class="card-body">
       <div class="card-title">${esc(pieceName(p))}</div>
-      <div class="meta">${esc([dateText(p.started), ...(p.tags || []).map((x) => label("tag", x))].filter(Boolean).join(" · "))}</div>
-      <div class="pills"><span class="pill st-${st}">${t("stage." + st)}</span>
-        ${p.final && p.final.outcome ? `<span class="pill oc-${p.final.outcome}">${t("outcome." + p.final.outcome)}</span>` : ""}
-        ${s.status === "for" ? `<span class="pill sale">${t("sale.for")}${has(s.ask) ? " " + money(s.ask) : ""}</span>` : ""}
-        ${s.status === "sold" ? `<span class="pill sold">${t("sale.sold")}${has(s.price) || has(s.ask) ? " " + money(has(s.price) ? s.price : s.ask) : ""}</span>` : ""}</div>
+      <div class="meta"><i class="dot st-${st}"></i>${esc(line)}</div>
     </div></a>`;
+}
+
+/* A piece is one stage at a time: the tabs across the top swap what's below them, so only
+ * the handful of numbers that matter right now is on screen. */
+const PIECE_TABS = ["wet", "bisque", "glaze", "final", "design", "sales"];
+let PIECE_TAB = null, PIECE_TAB_FOR = null;
+const tabLabel = (k) => k === "glaze" ? t("stage.glazed") : k === "design" ? t("tab.design") : k === "sales" ? t("sec.sales") : t("stage." + k);
+/** Has anything been filled in for this tab yet? Marks the tab with a small dot. */
+function tabFilled(p, k) {
+  const any = (o, ks) => o && ks.some((x) => { const v = o[x]; return Array.isArray(v) ? v.length : (has(v) || (typeof v === "string" && v)); });
+  if (k === "wet") return any(p.wet, ["l", "w", "h", "weight", "trimmed", "dryDays", "dryNotes"]) || hasHandle(p.wet) || (p.clay || []).length > 0 || (p.technique || []).length > 0;
+  if (k === "bisque") return any(p.bisque, ["l", "w", "h", "weight", "firingId"]) || hasHandle(p.bisque);
+  if (k === "glaze") return any(p.glaze, ["glazes", "method", "firingId"]);
+  if (k === "final") return any(p.final, ["l", "w", "h", "weight", "outcome"]) || hasHandle(p.final);
+  if (k === "design") return !!p.designId || (p.inspIds || []).length > 0;
+  return !!(p.sale && p.sale.status && p.sale.status !== "not");
 }
 
 VIEWS.piece = (r) => {
   const p = DB.pieces[r.id];
   if (!p) return null;
-  if (OPEN_FOR !== p.id) {   // first look at this piece: open what's relevant to where it's at
-    OPEN_FOR = p.id;
-    const st = stageOf(p);
-    OPEN = new Set(["photos", { wet: "wet", bisque: "bisque", glazed: "glaze", final: "final" }[st]]);
-    if (!p.title && !(p.technique || []).length) OPEN.add("basics");
-    if (!(p.clay || []).length && st === "wet") OPEN.add("clay");
-  }
-  const c = calc(p), u = p.unit || SETTINGS.unit, st = stageOf(p);
+  const st = stageOf(p), u = p.unit || SETTINGS.unit, c = calc(p);
+  if (PIECE_TAB_FOR !== p.id) { PIECE_TAB_FOR = p.id; PIECE_TAB = st === "glazed" ? "glaze" : st; }
+  const tab = PIECE_TABS.includes(PIECE_TAB) ? PIECE_TAB : "wet";
   const addStage = r.addStage || st;
-  const clayRows = (p.clay || []).map((row, i) => `<div class="clay-row">
-      <select data-f="clay.${i}.type" data-list="clay"><option value="">${t("f.clayType")}</option>${[...new Set([...listValues("clay"), row.type].filter(Boolean))].map((v) => `<option value="${esc(v)}"${v === row.type ? " selected" : ""}>${esc(label("clay", v))}</option>`).join("")}<option value="__new__">+ …</option></select>
-      <input type="number" inputmode="numeric" step="any" data-f="clay.${i}.g" data-num value="${has(row.g) ? esc(row.g) : ""}" placeholder="g">
-      <button class="icon-btn" data-act="clay-del" data-i="${i}" aria-label="${t("btn.delete")}">${ICON.x}</button></div>`).join("");
-  const s = p.sale || {};
-  const fin = p.final || {};
   const photos = p.photos || [];
-  const insps = (p.inspIds || []).map((id) => DB.insps[id]).filter(Boolean);
-  const designs = Object.values(DB.designs).sort((a, b) => b.createdAt - a.createdAt);
   return `<div data-rec data-coll="pieces" data-id="${esc(p.id)}" class="editor">
     <div class="hero" data-act="${photos.length ? "photo" : ""}" data-pid="${esc((coverOf(p) || {}).id || "")}">${photos.length ? img(coverOf(p), "hero-img", false) : `<label class="hero-add"><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}<span>${t("btn.takePhoto")}</span></label>`}</div>
     <input class="title-in" type="text" data-f="title" value="${esc(p.title || "")}" placeholder="${esc(t("untitled"))}">
-    <div class="stages">${STAGES.map((x, i) => `<span class="${i <= STAGES.indexOf(st) ? "on" : ""}">${t("stage." + x)}</span>`).join("")}</div>
+    <div class="ptabs">${PIECE_TABS.map((k) => `<button data-act="piece-tab" data-val="${k}" aria-pressed="${k === tab}">${esc(tabLabel(k))}${tabFilled(p, k) ? `<i class="dot st-${k === "glaze" ? "glazed" : k}"></i>` : ""}</button>`).join("")}</div>
+    <div class="tabbody">${TAB_BODY[tab](p, c, u)}</div>
 
-    ${section("photos", t("sec.photos"), `
-      <div class="ph-grid">${photos.map((ph) => `<button class="ph" data-act="photo" data-pid="${esc(ph.id)}">${img(ph)}<span class="pill st-${ph.stage}">${t("stage." + ph.stage)}</span>${ph.id === p.cover ? '<i class="star">★</i>' : ""}${ph.url ? "" : '<i class="dot" title="not uploaded"></i>'}</button>`).join("")}</div>
-      ${field(t("f.addStage"), chips("addStage", STAGES, addStage, (v) => t("stage." + v), { single: true }))}
-      <div class="row">${uploadBtn("piece", true, t("btn.takePhoto"))}${uploadBtn("piece", false, t("btn.addPhoto"))}</div>`,
-      photos.length ? t("photos.count", { n: photos.length }) : "")}
-
-    ${section("basics", t("sec.basics"), `
-      ${field(t("f.started"), dateIn("started", p.started))}
-      ${field(t("f.technique"), chips("technique", TECHNIQUES, p.technique, (v) => t("tech." + v)))}
-      ${field(t("f.tags"), chips("tags", [...new Set([...listValues("tags"), ...(p.tags || [])])], p.tags, (v) => label("tag", v), { add: "tags" }))}
-      ${field(t("f.notes"), area("notes", p.notes))}`,
-      esc((p.technique || []).map((x) => t("tech." + x)).join(", ")))}
-
-    ${section("clay", t("sec.clay"), `
-      ${clayRows}
-      <button class="btn small" data-act="clay-add">${ICON.plus} ${t("btn.addRow")}</button>
-      <div class="calc"><span>${t("f.totalClay")}</span><b data-calc="total">${c.total}</b></div>`,
-      `<span data-calc="total">${c.total}</span>`)}
-
-    ${section("wet", t("sec.wet"), `
-      <div class="row between"><span class="lbl">${t("f.dims")}</span><select data-f="unit" class="unit">${UNITS.map((x) => `<option${x === u ? " selected" : ""}>${x}</option>`).join("")}</select></div>
-      ${dims("wet", p.wet, u)}
-      <div class="grid2">${field(t("f.weight"), numIn("wet.weight", (p.wet || {}).weight))}${field(t("f.weightTrimmed"), numIn("wet.trimmed", (p.wet || {}).trimmed))}</div>
-      <div class="calc"><span>${t("f.trimmedOff")}</span><b data-calc="trimmed">${c.trimmed}</b></div>
-      ${handleBlock("wet", p.wet, u, true, c)}
-      ${field(t("f.dryDays"), numIn("wet.dryDays", (p.wet || {}).dryDays))}
-      ${field(t("f.dryNotes"), area("wet.dryNotes", (p.wet || {}).dryNotes))}`)}
-
-    ${section("bisque", t("sec.bisque"), `
-      <span class="lbl">${t("f.dimsBisque")}</span>
-      ${dims("bisque", p.bisque, u)}
-      <div class="calc"><span>${t("f.shrinkBisque")}</span><b data-calc="shrinkB">${c.shrinkB}</b></div>
-      ${handleBlock("bisque", p.bisque, u, false, c)}
-      ${field(t("f.weightBisque"), numIn("bisque.weight", (p.bisque || {}).weight))}
-      ${field(t("f.firing"), firingSelect("bisque.firingId", (p.bisque || {}).firingId, "bisque"))}`,
-      `<span data-calc="shrinkBavg">${c.shrinkBavg === "–" ? "" : c.shrinkBavg}</span>`)}
-
-    ${section("glaze", t("sec.glaze"), `
-      ${field(t("f.glazes"), chips("glaze.glazes", [...new Set([...listValues("glazes"), ...((p.glaze && p.glaze.glazes) || [])])], (p.glaze || {}).glazes, (v) => v, { add: "glazes" }))}
-      ${field(t("f.method"), chips("glaze.method", METHODS, (p.glaze || {}).method, (v) => t("method." + v)))}
-      ${field(t("f.firing"), firingSelect("glaze.firingId", (p.glaze || {}).firingId, "glaze"))}`,
-      esc(((p.glaze && p.glaze.glazes) || []).join(", ")))}
-
-    ${section("final", t("sec.final"), `
-      <span class="lbl">${t("f.dimsFinal")}</span>
-      ${dims("final", p.final, u)}
-      <div class="calc"><span>${t("f.shrinkFinal")}</span><b data-calc="shrinkF">${c.shrinkF}</b></div>
-      ${handleBlock("final", p.final, u, false, c)}
-      ${field(t("f.weightFinal"), numIn("final.weight", fin.weight))}
-      ${field(t("f.outcome"), chips("final.outcome", OUTCOMES, fin.outcome, (v) => t("outcome." + v), { single: true, cls: "oc" }))}
-      ${fin.outcome && fin.outcome !== "success" ? field(t("f.defects"), chips("final.defects", DEFECTS, fin.defects, (v) => t("defect." + v))) : ""}
-      ${fin.outcome && fin.outcome !== "success" && (fin.defects || []).includes("other") ? field(t("f.defectOther"), textIn("final.defectOther", fin.defectOther)) : ""}`,
-      [fin.outcome ? t("outcome." + fin.outcome) : "", `<span data-calc="shrinkFavg">${c.shrinkFavg === "–" ? "" : c.shrinkFavg}</span>`].filter(Boolean).join(" · "))}
-
-    ${section("links", t("sec.links"), `
-      ${field(t("f.design"), `<div class="row"><select data-f="designId"><option value="">${t("none")}</option>${designs.map((d) => `<option value="${esc(d.id)}"${d.id === p.designId ? " selected" : ""}>${esc(designName(d))}</option>`).join("")}</select>${p.designId && DB.designs[p.designId] ? `<a class="btn small ghost" href="#/design/${esc(p.designId)}">›</a>` : ""}</div>`)}
-      <span class="lbl">${t("f.inspirations")}</span>
-      <div class="mini-grid">${insps.map((x) => `<div class="mini">${img(x.image)}<a href="#/insp/${esc(x.id)}" class="cover-link"></a><button class="icon-btn over" data-act="insp-unlink" data-id="${esc(x.id)}">${ICON.x}</button></div>`).join("")}
-        <button class="mini add" data-act="insp-pick">${ICON.plus}</button></div>`)}
-
-    ${section("sales", t("sec.sales"), `
-      ${field(t("f.saleStatus"), chips("sale.status", SALES, s.status || "not", (v) => t("sale." + v), { single: true }))}
-      <div class="grid2">${field(`${t("f.askPrice")} (${esc(SETTINGS.currency)})`, numIn("sale.ask", s.ask))}${s.status === "sold" ? field(`${t("f.salePrice")} (${esc(SETTINGS.currency)})`, numIn("sale.price", s.price)) : ""}</div>
-      ${field(t("f.channel"), textIn("sale.channel", s.channel ? label("chan", s.channel) : "", "", "dl-channels"))}
-      ${s.status === "sold" ? `<div class="grid2">${field(t("f.soldDate"), dateIn("sale.soldDate", s.soldDate))}${field(t("f.buyer"), textIn("sale.buyer", s.buyer))}</div>` : ""}`,
-      s.status && s.status !== "not" ? t("sale." + s.status) : "")}
+    <div class="photos">
+      <div class="ph-grid">${photos.map((ph) => `<button class="ph" data-act="photo" data-pid="${esc(ph.id)}">${img(ph)}<span class="pill st-${ph.stage}">${t("stage." + ph.stage)}</span>${ph.id === p.cover ? '<i class="star">★</i>' : ""}${ph.url ? "" : '<i class="dot" title="not uploaded"></i>'}</button>`).join("")}
+        <label class="ph add"><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}</label>
+        <label class="ph add"><input type="file" accept="image/*" multiple hidden data-upload="piece">${ICON.image}</label></div>
+      <div class="ph-stage"><span>${t("f.addStage")}</span>${chips("addStage", STAGES, addStage, (v) => t("stage." + v), { single: true })}</div>
+    </div>
 
     <button class="btn danger wide" data-act="delete" data-coll="pieces">${t("btn.delete")}</button>
   </div>`;
+};
+
+/** What each tab shows. Every field stays optional; nothing here is required to save. */
+const TAB_BODY = {
+  wet(p, c, u) {
+    const w = p.wet || {};
+    const clayRows = (p.clay || []).map((row, i) => `<div class="clay-row">
+      <select data-f="clay.${i}.type" data-list="clay"><option value="">${t("f.clayType")}</option>${[...new Set([...listValues("clay"), row.type].filter(Boolean))].map((v) => `<option value="${esc(v)}"${v === row.type ? " selected" : ""}>${esc(label("clay", v))}</option>`).join("")}<option value="__new__">+ …</option></select>
+      <input type="number" inputmode="numeric" step="any" data-f="clay.${i}.g" data-num value="${has(row.g) ? esc(row.g) : ""}" placeholder="g">
+      <button class="icon-btn" data-act="clay-del" data-i="${i}" aria-label="${t("btn.delete")}">${ICON.x}</button></div>`).join("");
+    return `
+      <div class="row between"><span class="lbl">${t("f.dims")}</span><select data-f="unit" class="unit">${UNITS.map((x) => `<option${x === u ? " selected" : ""}>${x}</option>`).join("")}</select></div>
+      ${dims("wet", w, u)}
+      <div class="grid2">${field(t("f.weight"), numIn("wet.weight", w.weight))}${field(t("f.weightTrimmed"), numIn("wet.trimmed", w.trimmed))}</div>
+      ${has(w.weight) && has(w.trimmed) ? `<div class="calc"><span>${t("f.trimmedOff")}</span><b data-calc="trimmed">${c.trimmed}</b></div>` : ""}
+      ${handleBlock("wet", w, u, true, c)}
+      <span class="lbl">${t("sec.clay")}</span>
+      ${clayRows}
+      <div class="row"><button class="btn small" data-act="clay-add">${ICON.plus} ${t("btn.addRow")}</button>${(p.clay || []).length ? `<span class="meta">${t("f.totalClay")} <b data-calc="total">${c.total}</b></span>` : ""}</div>
+      ${field(t("f.technique"), chips("technique", TECHNIQUES, p.technique, (v) => t("tech." + v)))}
+      ${field(t("f.tags"), chips("tags", [...new Set([...listValues("tags"), ...(p.tags || [])])], p.tags, (v) => label("tag", v), { add: "tags" }))}
+      ${field(t("f.started"), dateIn("started", p.started))}
+      <div class="grid2">${field(t("f.dryDays"), numIn("wet.dryDays", w.dryDays))}${field(t("f.dryNotes"), textIn("wet.dryNotes", w.dryNotes))}</div>
+      ${field(t("f.notes"), area("notes", p.notes))}`;
+  },
+  bisque(p, c, u) {
+    const b = p.bisque || {};
+    return `
+      <span class="lbl">${t("f.dimsBisque")} (${esc(u)})</span>
+      ${dims("bisque", b, u)}
+      ${c.shrinkB === "–" ? "" : `<div class="calc"><span>${t("f.shrinkBisque")}</span><b data-calc="shrinkB">${c.shrinkB}</b></div>`}
+      ${handleBlock("bisque", b, u, false, c)}
+      ${field(t("f.weightBisque"), numIn("bisque.weight", b.weight))}
+      ${field(t("f.firing"), firingSelect("bisque.firingId", b.firingId, "bisque"))}`;
+  },
+  glaze(p) {
+    const g = p.glaze || {};
+    return `
+      ${field(t("f.glazes"), chips("glaze.glazes", [...new Set([...listValues("glazes"), ...(g.glazes || [])])], g.glazes, (v) => v, { add: "glazes" }))}
+      ${field(t("f.method"), chips("glaze.method", METHODS, g.method, (v) => t("method." + v)))}
+      ${field(t("f.firing"), firingSelect("glaze.firingId", g.firingId, "glaze"))}`;
+  },
+  final(p, c, u) {
+    const f = p.final || {};
+    return `
+      <span class="lbl">${t("f.dimsFinal")} (${esc(u)})</span>
+      ${dims("final", f, u)}
+      ${c.shrinkF === "–" ? "" : `<div class="calc"><span>${t("f.shrinkFinal")}</span><b data-calc="shrinkF">${c.shrinkF}</b></div>`}
+      ${handleBlock("final", f, u, false, c)}
+      ${field(t("f.weightFinal"), numIn("final.weight", f.weight))}
+      ${field(t("f.outcome"), chips("final.outcome", OUTCOMES, f.outcome, (v) => t("outcome." + v), { single: true, cls: "oc" }))}
+      ${f.outcome && f.outcome !== "success" ? field(t("f.defects"), chips("final.defects", DEFECTS, f.defects, (v) => t("defect." + v))) : ""}
+      ${f.outcome && f.outcome !== "success" && (f.defects || []).includes("other") ? field(t("f.defectOther"), textIn("final.defectOther", f.defectOther)) : ""}`;
+  },
+  design(p) {
+    const designs = Object.values(DB.designs).sort((a, b) => b.createdAt - a.createdAt);
+    const insps = (p.inspIds || []).map((id) => DB.insps[id]).filter(Boolean);
+    return `
+      ${field(t("f.design"), `<div class="row"><select data-f="designId"><option value="">${t("none")}</option>${designs.map((d) => `<option value="${esc(d.id)}"${d.id === p.designId ? " selected" : ""}>${esc(designName(d))}</option>`).join("")}</select>${p.designId && DB.designs[p.designId] ? `<a class="btn small ghost" href="#/design/${esc(p.designId)}">›</a>` : ""}</div>`)}
+      <span class="lbl">${t("f.inspirations")}</span>
+      <div class="mini-grid">${insps.map((x) => `<div class="mini">${img(x.image)}<a href="#/insp/${esc(x.id)}" class="cover-link"></a><button class="icon-btn over" data-act="insp-unlink" data-id="${esc(x.id)}">${ICON.x}</button></div>`).join("")}
+        <button class="mini add" data-act="insp-pick">${ICON.plus}</button></div>`;
+  },
+  sales(p) {
+    const s = p.sale || {};
+    return `
+      ${field(t("f.saleStatus"), chips("sale.status", SALES, s.status || "not", (v) => t("sale." + v), { single: true }))}
+      ${s.status && s.status !== "not" ? `
+        <div class="grid2">${field(`${t("f.askPrice")} (${esc(SETTINGS.currency)})`, numIn("sale.ask", s.ask))}${s.status === "sold" ? field(`${t("f.salePrice")} (${esc(SETTINGS.currency)})`, numIn("sale.price", s.price)) : ""}</div>
+        ${field(t("f.channel"), textIn("sale.channel", s.channel ? label("chan", s.channel) : "", "", "dl-channels"))}
+        ${s.status === "sold" ? `<div class="grid2">${field(t("f.soldDate"), dateIn("sale.soldDate", s.soldDate))}${field(t("f.buyer"), textIn("sale.buyer", s.buyer))}</div>` : ""}` : ""}`;
+  }
 };
 
 VIEWS.gallery = () => {
@@ -313,10 +331,11 @@ VIEWS.gallery = () => {
   const active = Object.values(F).filter(Boolean).length;
   const usedTags = [...new Set(all.flatMap((x) => [...tagsIn(x)]))];
   const g = (key, vals, lab) => `<div class="fgroup"><span class="lbl">${t("filter." + key)}</span>${chips("gf." + key, vals, F[key], lab, { single: true })}</div>`;
+  const stageWords = `<div class="wordtabs">${["", ...STAGES].map((v) => `<button data-act="chip" data-group="gf.stage" data-val="${v}" data-single aria-pressed="${(F.stage || "") === v}">${v ? t("stage." + v) : (LANG === "zh" ? "全部" : "All")}</button>`).join("")}</div>`;
   return `
-    <div class="toolbar"><button class="btn small${active ? " primary" : ""}" data-act="toggle-filters">${ICON.filter} ${active ? active : ""}</button>
-      <span class="meta">${t("photos.count", { n: shown.length })}</span>
-      ${active ? `<button class="btn small ghost" data-act="clear-filters">${t("btn.clear")}</button>` : ""}</div>
+    <div class="toolbar">${stageWords}
+      <div class="row between"><span class="meta">${t("photos.count", { n: shown.length })}</span>
+        <span class="row">${active ? `<button class="btn small ghost" data-act="clear-filters">${t("btn.clear")}</button>` : ""}<button class="btn small${active ? " primary" : ""}" data-act="toggle-filters">${ICON.filter} ${LANG === "zh" ? "筛选" : "Filters"}${active ? " · " + active : ""}</button></span></div></div>
     <div class="filters"${FILTERS_OPEN ? "" : " hidden"}>
       ${g("stage", STAGES, (v) => t("stage." + v))}
       ${usedTags.length ? g("tag", usedTags, (v) => label("tag", v)) : ""}
@@ -417,6 +436,17 @@ VIEWS.insp = (r) => {
     <button class="btn wide" data-act="design-from-insp">${ICON.plus} ${t("btn.newDesign")}</button>
     <button class="btn danger wide" data-act="delete" data-coll="insps">${t("btn.delete")}</button>
   </div></div>`;
+};
+
+VIEWS.more = () => {
+  const nd = Object.keys(DB.designs).length, ni = Object.keys(DB.insps).length;
+  const sold = Object.values(DB.pieces).filter((p) => p.sale && p.sale.status === "sold");
+  const takings = sold.reduce((a, p) => a + (has(p.sale.price) ? Number(p.sale.price) : has(p.sale.ask) ? Number(p.sale.ask) : 0), 0);
+  return `<div class="rows">
+      <a class="srow" href="#/ideas" data-act="ideas-open" data-val="designs">${t("ideas.designs")}<span class="v">${nd} ${ICON.chevron}</span></a>
+      <a class="srow" href="#/ideas" data-act="ideas-open" data-val="insp">${t("ideas.insp")}<span class="v">${ni} ${ICON.chevron}</span></a>
+      <div class="srow">${t("sec.sales")}<span class="v">${sold.length ? esc(money(takings)) : "–"}</span></div>
+    </div>` + VIEWS.settings();
 };
 
 VIEWS.settings = () => {
@@ -676,7 +706,9 @@ document.addEventListener("click", async (e) => {
     case "new-insp": { const x = newRecord("insps", { tags: [] }); save(); go("#/insp/" + x.id); return; }
     case "design-from-insp": { const d = newRecord("designs", { status: "concept", inspId: ROUTE.id }); save(); go("#/design/" + d.id); return; }
     case "piece-filter": PIECE_FILTER = el.dataset.val; render(true); return;
+    case "piece-tab": PIECE_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
     case "ideas-tab": SETTINGS.ideasTab = el.dataset.val; saveSettings(); render(); return;
+    case "ideas-open": SETTINGS.ideasTab = el.dataset.val; saveSettings(); return;   // the link carries on to #/ideas
     case "toggle-filters": FILTERS_OPEN = !FILTERS_OPEN; render(true); return;
     case "clear-filters": SETTINGS.galleryFilters = {}; saveSettings(); render(true); return;
     case "clay-add": rec.clay = [...(rec.clay || []), { type: (rec.clay && rec.clay.length) ? "" : (listValues("clay")[0] || ""), g: null }]; changed(rec, true); return;
@@ -837,7 +869,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "7";
+const APP_VERSION = "8";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#lang").addEventListener("click", () => { SETTINGS.lang = LANG === "zh" ? "en" : "zh"; saveSettings(); setLang(SETTINGS.lang); render(true); if (SHEET) drawSheet(); });

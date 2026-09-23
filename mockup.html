@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clay Journal — simpler design</title>
+<style>
+/* A mockup, not the app: static screens showing a simpler way to lay Clay Journal out.
+   One idea runs through it — show one thing at a time, and let the numbers be the page. */
+:root {
+  --bg: #f4ede1; --ink: #2a1f17; --muted: #6d5c4a; --line: #e0d5c2; --hair: #eae1d2;
+  --accent: #8a5228; --wet: #8a7a66; --bisque: #a96a2e; --glazed: #3f7175; --final: #40653c;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "PingFang SC", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #16130f; --ink: #f2ece2; --muted: #b0a493; --line: #332d26; --hair: #262119; --accent: #dd9064; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #d9cfbe; color: var(--ink); font: 16px/1.5 var(--sans); }
+@media (prefers-color-scheme: dark) { body { background: #0c0a08; } }
+.page { max-width: 1180px; margin: 0 auto; padding: 28px 16px 60px; }
+.intro { max-width: 620px; margin: 0 auto 26px; color: #3a2c1e; }
+@media (prefers-color-scheme: dark) { .intro { color: #e8e0d4; } }
+.intro h1 { font-size: 26px; letter-spacing: -0.02em; margin: 0 0 8px; }
+.intro p { margin: 6px 0; font-size: 15px; }
+.screens { display: flex; flex-wrap: wrap; gap: 26px; justify-content: center; }
+.frame { width: 340px; }
+.cap { font-size: 13px; color: #4a3a2a; margin: 0 0 8px 4px; }
+@media (prefers-color-scheme: dark) { .cap { color: #cdc2b2; } }
+.cap b { display: block; font-size: 14.5px; color: inherit; }
+.phone { background: var(--bg); border-radius: 26px; overflow: hidden; height: 680px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(50, 30, 10, .18); }
+.scroll { flex: 1; overflow: hidden; }
+
+/* ---- shared bits */
+.top { display: flex; align-items: center; gap: 10px; padding: 18px 20px 10px; }
+.top h2 { margin: 0; font-size: 21px; letter-spacing: -0.02em; font-weight: 600; flex: 1; }
+.top .sub { font-size: 13px; color: var(--muted); }
+.icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dim { color: var(--muted); }
+.tabsline { display: flex; gap: 16px; padding: 2px 20px 10px; font-size: 14px; color: var(--muted); overflow: hidden; }
+.tabsline b { color: var(--ink); font-weight: 600; }
+.bar { margin-top: auto; display: flex; border-top: 1px solid var(--hair); padding: 9px 0 14px; }
+.bar div { flex: 1; text-align: center; font-size: 10.5px; color: var(--muted); }
+.bar div.on { color: var(--ink); }
+.bar .icon { display: block; margin: 0 auto 3px; }
+
+/* ---- list of pieces */
+.row { display: flex; align-items: center; gap: 14px; padding: 12px 20px; }
+.row + .row { border-top: 1px solid var(--hair); }
+.ph { width: 54px; height: 54px; border-radius: 27px; flex: none; background: linear-gradient(140deg, #c9b49a, #9d8straight); }
+.ph.a { background: linear-gradient(140deg, #cbb69b, #8e7characters); }
+.t { flex: 1; min-width: 0; }
+.t .n { font-weight: 550; letter-spacing: -0.01em; }
+.t .s { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.add { position: absolute; }
+.fab { margin: 14px 20px; display: flex; gap: 10px; }
+.fab .b { flex: 1; text-align: center; padding: 13px; border-radius: 14px; background: var(--ink); color: var(--bg); font-weight: 550; font-size: 15px; }
+.fab .c { width: 50px; display: grid; place-items: center; border-radius: 14px; border: 1px solid var(--line); }
+
+/* ---- a piece */
+.hero { height: 190px; background: linear-gradient(150deg, #b9a184, #7f6a52); }
+.pname { font-size: 24px; font-weight: 600; letter-spacing: -0.025em; padding: 14px 20px 2px; }
+.stageline { display: flex; gap: 18px; padding: 6px 20px 0; font-size: 14px; color: var(--muted); }
+.stageline span { padding-bottom: 8px; border-bottom: 2px solid transparent; }
+.stageline span.on { color: var(--ink); font-weight: 600; border-color: var(--bisque); }
+.entry { display: flex; align-items: baseline; gap: 12px; padding: 13px 20px; border-top: 1px solid var(--hair); }
+.entry .k { color: var(--muted); font-size: 15px; flex: 1; }
+.entry .v { font-size: 16px; font-weight: 550; }
+.entry .v.empty { color: #b6a68f; font-weight: 400; }
+.entry .chev { color: #b6a68f; }
+.calc { display: flex; justify-content: space-between; padding: 12px 20px; background: rgba(169, 106, 46, .09); font-size: 14px; }
+.calc b { font-weight: 600; }
+.more { padding: 14px 20px; font-size: 15px; color: var(--accent); }
+.strip { display: flex; gap: 6px; padding: 12px 20px; }
+.strip i { width: 56px; height: 56px; border-radius: 10px; background: linear-gradient(140deg, #c3ad92, #8d7a63); display: block; }
+.strip i.add { background: none; border: 1px dashed var(--line); display: grid; place-items: center; color: var(--muted); font-style: normal; }
+
+/* ---- gallery */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.grid i { aspect-ratio: 1; display: block; background: linear-gradient(140deg, #c7b195, #8a7660); }
+.grid i:nth-child(3n) { background: linear-gradient(140deg, #b7a184, #6f5f4c); }
+.grid i:nth-child(4n) { background: linear-gradient(140deg, #d0bda3, #9d8a72); }
+
+/* ---- settings rows */
+.srow { display: flex; align-items: center; gap: 12px; padding: 15px 20px; border-top: 1px solid var(--hair); font-size: 15.5px; }
+.srow .v { margin-left: auto; color: var(--muted); font-size: 15px; }
+.group { margin-top: 22px; }
+.group .h { font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 0 20px 6px; }
+.note { padding: 14px 20px; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>A simpler Clay Journal</h1>
+    <p>Same features, less on screen. Three rules: <b>one stage at a time</b> instead of nine open sections; <b>numbers as plain rows</b> instead of boxes and uppercase labels; and <b>no panels</b> — a single sheet of paper with hairlines.</p>
+    <p class="dim">Static mockup. The app itself is unchanged until you say go.</p>
+  </div>
+
+  <div class="screens">
+
+    <!-- 1. Pieces -->
+    <div class="frame">
+      <p class="cap"><b>Pieces</b>Photo, name, where it's up to. Filters are plain words, not buttons.</p>
+      <div class="phone">
+        <div class="scroll">
+          <div class="top"><h2>Pieces</h2><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></div>
+          <div class="tabsline"><b>All</b><span>Wet</span><span>Bisque</span><span>Glazed</span><span>Final</span><span>Sold</span></div>
+          <div class="row"><i class="ph"></i><div class="t"><div class="n">Marbled cup</div><div class="s"><i class="dot" style="background:var(--final)"></i>Final · sold £40</div></div></div>
+          <div class="row"><i class="ph a"></i><div class="t"><div class="n">Tea bowl</div><div class="s"><i class="dot" style="background:var(--bisque)"></i>Bisque · 19 Sept</div></div></div>
+          <div class="row"><i class="ph"></i><div class="t"><div class="n">Tall vase</div><div class="s"><i class="dot" style="background:var(--wet)"></i>Drying · 21 Sept</div></div></div>
+          <div class="row"><i class="ph a"></i><div class="t"><div class="n">Coffee cup, no. 2</div><div class="s"><i class="dot" style="background:var(--glazed)"></i>Glazed · waiting on kiln</div></div></div>
+          <div class="row"><i class="ph"></i><div class="t"><div class="n">Slab plate</div><div class="s"><i class="dot" style="background:var(--final)"></i>Final · for sale</div></div></div>
+        </div>
+        <div class="fab"><div class="b">New piece</div><div class="c"><svg class="icon" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div></div>
+        <div class="bar">
+          <div class="on"><svg class="icon" viewBox="0 0 24 24"><path d="M7 4h10l-1 3c2 2 3 5 3 8a7 7 0 0 1-14 0c0-3 1-6 3-8z"/></svg>Pieces</div>
+          <div><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>Gallery</div>
+          <div><svg class="icon" viewBox="0 0 24 24"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></svg>Firings</div>
+          <div><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>More</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. A piece -->
+    <div class="frame">
+      <p class="cap"><b>A piece — one stage at a time</b>Tap Wet / Bisque / Glaze / Final to switch. Only that stage's numbers show, as rows you tap to type in.</p>
+      <div class="phone">
+        <div class="scroll">
+          <div class="hero"></div>
+          <div class="pname">Marbled cup</div>
+          <div class="stageline"><span>Wet</span><span class="on">Bisque</span><span>Glaze</span><span>Final</span></div>
+          <div class="entry"><span class="k">Size</span><span class="v">9.2 × 9.2 × 11 cm</span></div>
+          <div class="entry"><span class="k">Weight</span><span class="v empty">—</span></div>
+          <div class="entry"><span class="k">Handle</span><span class="v empty">—</span></div>
+          <div class="entry"><span class="k">Firing</span><span class="v">22 Sept, cone 06 <span class="chev">›</span></span></div>
+          <div class="calc"><span>Shrinkage from wet</span><b>8.2%</b></div>
+          <div class="strip"><i></i><i></i><i class="add">+</i></div>
+          <div class="entry"><span class="k">Notes</span><span class="v empty">Add <span class="chev">›</span></span></div>
+          <div class="more">Clay, tags, design, sales ›</div>
+        </div>
+        <div class="bar">
+          <div class="on"><svg class="icon" viewBox="0 0 24 24"><path d="M7 4h10l-1 3c2 2 3 5 3 8a7 7 0 0 1-14 0c0-3 1-6 3-8z"/></svg>Pieces</div>
+          <div><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>Gallery</div>
+          <div><svg class="icon" viewBox="0 0 24 24"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></svg>Firings</div>
+          <div><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>More</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Editing one number -->
+    <div class="frame">
+      <p class="cap"><b>Typing a number</b>Tapping a row opens just that row: big field, keypad, done. Nothing else competes for attention.</p>
+      <div class="phone">
+        <div class="scroll">
+          <div class="hero" style="height:120px"></div>
+          <div class="pname">Marbled cup</div>
+          <div class="stageline"><span>Wet</span><span class="on">Bisque</span><span>Glaze</span><span>Final</span></div>
+          <div style="padding:22px 20px 4px">
+            <div style="font-size:13px;color:var(--muted)">Size after bisque (cm)</div>
+            <div style="display:flex;gap:10px;margin-top:10px">
+              <div style="flex:1"><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Length</div><div style="border-bottom:2px solid var(--ink);padding:6px 2px;font-size:26px;font-weight:600">9.2</div></div>
+              <div style="flex:1"><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Width</div><div style="border-bottom:1px solid var(--line);padding:6px 2px;font-size:26px;color:#b6a68f">—</div></div>
+              <div style="flex:1"><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Height</div><div style="border-bottom:1px solid var(--line);padding:6px 2px;font-size:26px;color:#b6a68f">—</div></div>
+            </div>
+            <div style="margin-top:14px;font-size:13.5px;color:var(--muted)">Wet was 10 × 10 × 12 cm</div>
+          </div>
+          <div style="margin:18px 20px;padding:13px;text-align:center;border-radius:14px;background:var(--ink);color:var(--bg);font-weight:550">Done</div>
+          <div class="note">Every number stays optional — leave a dash and come back to it next week.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Gallery -->
+    <div class="frame">
+      <p class="cap"><b>Gallery</b>Just the photos. One line of words at the top does the filtering.</p>
+      <div class="phone">
+        <div class="scroll">
+          <div class="top"><h2>Gallery</h2><span class="sub">64 photos</span></div>
+          <div class="tabsline"><b>All</b><span>Wet</span><span>Bisque</span><span>Glazed</span><span>Final</span><span>Cups</span></div>
+          <div class="grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="bar">
+          <div><svg class="icon" viewBox="0 0 24 24"><path d="M7 4h10l-1 3c2 2 3 5 3 8a7 7 0 0 1-14 0c0-3 1-6 3-8z"/></svg>Pieces</div>
+          <div class="on"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>Gallery</div>
+          <div><svg class="icon" viewBox="0 0 24 24"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></svg>Firings</div>
+          <div><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>More</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. More -->
+    <div class="frame">
+      <p class="cap"><b>More</b>Designs, inspiration and settings move off the tab bar into one quiet list.</p>
+      <div class="phone">
+        <div class="scroll">
+          <div class="top"><h2>More</h2></div>
+          <div class="srow">Designs<span class="v">12 ›</span></div>
+          <div class="srow">Inspiration<span class="v">31 ›</span></div>
+          <div class="srow">Sales<span class="v">£420 this year ›</span></div>
+          <div class="group"><div class="h">Account</div>
+            <div class="srow">Signed in<span class="v">dom@… ›</span></div>
+            <div class="srow">Sync<span class="v">2 min ago</span></div>
+          </div>
+          <div class="group"><div class="h">App</div>
+            <div class="srow">Language<span class="v">English ›</span></div>
+            <div class="srow">Units &amp; currency<span class="v">cm · £ ›</span></div>
+            <div class="srow">My lists<span class="v">Tags, clays, glazes ›</span></div>
+            <div class="srow">Backup<span class="v">Export · Import ›</span></div>
+            <div class="srow">Version<span class="v">v8 · Update</span></div>
+          </div>
+        </div>
+        <div class="bar">
+          <div><svg class="icon" viewBox="0 0 24 24"><path d="M7 4h10l-1 3c2 2 3 5 3 8a7 7 0 0 1-14 0c0-3 1-6 3-8z"/></svg>Pieces</div>
+          <div><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>Gallery</div>
+          <div><svg class="icon" viewBox="0 0 24 24"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></svg>Firings</div>
+          <div class="on"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>More</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

@@ -4,6 +4,10 @@ A phone app for logging every pottery piece from wet clay through bisque and gla
 to the finished (and maybe sold) piece. English and Chinese, switch with the 中/EN
 button at the top.
 
+The layout follows `mockup.html` (open it at /mockup.html): one stage at a time,
+plain rows instead of boxes, and the previous panelled design kept on the
+`backup-v7-panels` branch and the `v7-panels` tag.
+
 - **Pieces**: one record per piece. Technique, category tags, clay bodies with grams
   (total adds itself up), wet / bisque / final dimensions with **shrinkage worked out
   automatically**, weights before and after trimming, drying, glazes and how they
