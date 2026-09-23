@@ -1,10 +1,10 @@
 /* Clay Journal, minimal: one quiet paper background, hairline rules, no shadows, no fills
  * except where something is chosen. Stage colours survive only as small dots and thin bars. */
 :root {
-  --bg: #faf9f7; --card: #fff; --ink: #1c1a18; --muted: #8c857e; --faint: #b5aea7; --line: #e9e5e0; --soft: #f2efeb;
-  --accent: #a8542b; --accent-ink: #fff; --danger: #a7302a;
-  --wet: #9a9088; --bisque: #c3925f; --glazed: #5a8e92; --final: #4b7a5b;
-  --ok: #4b7a5b; --warn: #b8862c; --bad: #a7302a;
+  --bg: #f5efe3; --card: #fbf7ee; --ink: #3a2c22; --muted: #8a7867; --faint: #b3a290; --line: #e2d8c7; --soft: #ece3d4;
+  --accent: #8d5a34; --accent-ink: #fff; --danger: #9c3b2c;
+  --wet: #9c8c79; --bisque: #b97f4c; --glazed: #5b8489; --final: #55764f;
+  --ok: #55764f; --warn: #a97b26; --bad: #9c3b2c;
   --radius: 10px;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   color-scheme: light;
