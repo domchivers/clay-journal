@@ -15,8 +15,9 @@ plain rows instead of boxes, and the previous panelled design kept on the
 - **Handles** (optional, inside each stage): length as cut, then the attached handle's
   length, width and height at the wet stage, after bisque and on the finished piece,
   with its own shrinkage worked out.
-- **Pieces wall**: every photo from every piece, filterable by stage, tag, technique,
-  sale status, outcome and date.
+- **The wall**: Pieces opens as a grid of cover photos; tap one to open and edit that
+  piece. Two buttons above it switch between the wall and a list, and turn the names
+  underneath on or off.
 - **Costs**: log what you paid for a bag of clay or a tub of glaze and every piece is
   costed from what it actually used, at the average rate you've paid. A communal
   firing's fee and travel are split equally between the pieces in it, and each piece's
