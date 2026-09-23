@@ -57,7 +57,7 @@ let DB = (() => { try { return normalise(JSON.parse(localStorage.getItem(LS_DB))
 let SETTINGS = (() => {
   let s = {}; try { s = JSON.parse(localStorage.getItem(LS_SETTINGS)) || {}; } catch (e) {}
   const zh = /^zh/i.test(navigator.language || "");
-  return Object.assign({ lang: zh ? "zh" : "en", currency: zh ? "¥" : "£", unit: "cm", galleryFilters: {}, ideasTab: "designs" }, s);
+  return Object.assign({ lang: zh ? "zh" : "en", currency: zh ? "¥" : "£", unit: "cm", ideasTab: "designs", pieceView: "grid", gridTitles: true }, s);
 })();
 
 function saveSettings() { try { localStorage.setItem(LS_SETTINGS, JSON.stringify(SETTINGS)); } catch (e) {} }

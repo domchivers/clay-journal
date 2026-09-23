@@ -15,7 +15,7 @@ plain rows instead of boxes, and the previous panelled design kept on the
 - **Handles** (optional, inside each stage): length as cut, then the attached handle's
   length, width and height at the wet stage, after bisque and on the finished piece,
   with its own shrinkage worked out.
-- **Gallery**: every photo from every piece, filterable by stage, tag, technique,
+- **Pieces wall**: every photo from every piece, filterable by stage, tag, technique,
   sale status, outcome and date.
 - **Costs**: log what you paid for a bag of clay or a tub of glaze and every piece is
   costed from what it actually used, at the average rate you've paid. A communal
@@ -34,7 +34,8 @@ plain rows instead of boxes, and the previous panelled design kept on the
 
 Every number is optional: log the wet stage today and fill in bisque numbers next week.
 
-In the pieces list, swipe a row left to uncover **Delete** (it still asks first);
+Hold a tag, clay, glaze, studio or one of your own shapes to take it off the list.
+In list view, swipe a row left to uncover **Delete** (it still asks first);
 tap the row again to put it back.
 
 ## Running it

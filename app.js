@@ -184,7 +184,8 @@ function img(p, cls = "", thumb = true) {
 }
 function chips(group, values, selected, labelFn, opts = {}) {
   const sel = Array.isArray(selected) ? selected : (selected == null ? [] : [selected]);
-  return `<div class="chips">${values.map((v) => `<button type="button" class="chip${opts.cls ? " " + opts.cls + "-" + esc(v) : ""}" data-act="chip" data-group="${esc(group)}" data-val="${esc(v)}"${opts.single ? " data-single" : ""} aria-pressed="${sel.includes(v)}">${esc(labelFn(v))}</button>`).join("")}${opts.add ? `<button type="button" class="chip add" data-act="list-add" data-list="${opts.add}" data-group="${esc(group)}">+</button>` : ""}</div>`;
+  const from = opts.add ? ` data-from="${esc(opts.add)}"` : "";   // long-press one of these to take it off the list
+  return `<div class="chips">${values.map((v) => `<button type="button" class="chip${opts.cls ? " " + opts.cls + "-" + esc(v) : ""}" data-act="chip" data-group="${esc(group)}" data-val="${esc(v)}"${opts.single ? " data-single" : ""}${from} aria-pressed="${sel.includes(v)}">${esc(labelFn(v))}</button>`).join("")}${opts.add ? `<button type="button" class="chip add" data-act="list-add" data-list="${opts.add}" data-group="${esc(group)}">+</button>` : ""}</div>`;
 }
 function field(lbl, inner, cls = "") { return `<label class="field ${cls}"><span>${esc(lbl)}</span>${inner}</label>`; }
 function numIn(path, val, ph = "") { return `<input type="number" inputmode="decimal" step="any" data-f="${path}" data-num value="${has(val) ? esc(val) : ""}" placeholder="${esc(ph)}">`; }
@@ -222,6 +223,9 @@ const ICON = {
   ideas: '<svg viewBox="0 0 24 24"><path d="M9.5 18h5M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2h5c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></svg>',
   camera: '<svg viewBox="0 0 24 24"><path d="M3.5 8.5h3.2l1.6-2.6h7.4l1.6 2.6h3.2v10.6H3.5z"/><circle cx="12" cy="13.6" r="3.4"/></svg>',
   image: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5l4.7-4.2a2 2 0 0 1 2.7 0l3.3 3M14 15.2l1.9-1.6a2 2 0 0 1 2.6 0l2 1.7"/></svg>',
+  list: '<svg viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></svg>',
+  grid: '<svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>',
+  text: '<svg viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h11M4 17.5h7"/></svg>',
   plus: '<svg viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></svg>',
   back: '<svg viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>',
   x: '<svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
@@ -243,7 +247,7 @@ function parseRoute() {
 const go = (h) => { location.hash = h; };
 window.addEventListener("hashchange", () => { ROUTE = parseRoute(); closeSheet(); render(); window.scrollTo(0, 0); });
 
-const TABS = ["pieces", "gallery", "firings", "ideas", "costs"];
+const TABS = ["pieces", "firings", "ideas", "costs"];
 const TAB_OF = { piece: "pieces", firing: "firings", design: "ideas", insp: "ideas", settings: "more", more: "pieces", purchase: "costs" };
 
 // ---------- views
@@ -254,13 +258,27 @@ VIEWS.pieces = () => {
   const filters = ["all", ...STAGES, "for", "sold"];
   const shown = all.filter((p) => PIECE_FILTER === "all" ? true : STAGES.includes(PIECE_FILTER) ? stageOf(p) === PIECE_FILTER : (p.sale && p.sale.status) === PIECE_FILTER);
   const fl = (v) => v === "all" ? (LANG === "zh" ? "全部" : "All") : STAGES.includes(v) ? t("stage." + v) : t("sale." + v);
+  const grid = SETTINGS.pieceView !== "list";
   return `
     ${all.length ? `<div class="toolbar"><label class="search">${ICON.search}<input type="search" data-search placeholder="${t("search")}"></label>
-      <div class="wordtabs">${filters.map((v) => `<button data-act="piece-filter" data-val="${v}" aria-pressed="${PIECE_FILTER === v}">${esc(fl(v))}</button>`).join("")}</div></div>` : ""}
-    <div class="cards">${shown.map(pieceCard).join("") || empty(all.length ? t("empty.gallery") : t("empty.pieces"))}</div>
+      <div class="row between"><div class="wordtabs">${filters.map((v) => `<button data-act="piece-filter" data-val="${v}" aria-pressed="${PIECE_FILTER === v}">${esc(fl(v))}</button>`).join("")}</div>
+      <span class="row viewtoggle">${grid ? `<button class="icon-btn" data-act="piece-titles" aria-pressed="${!!SETTINGS.gridTitles}" aria-label="${t("f.titles")}">${ICON.text}</button>` : ""}
+        <button class="icon-btn" data-act="piece-view" aria-label="${t("f.layout")}">${grid ? ICON.list : ICON.grid}</button></span></div></div>` : ""}
+    ${grid
+      ? `<div class="pgrid${SETTINGS.gridTitles ? " titled" : ""}">${shown.map(pieceTile).join("")}</div>${shown.length ? "" : empty(all.length ? t("empty.match") : t("empty.pieces"))}`
+      : `<div class="cards">${shown.map(pieceCard).join("") || empty(all.length ? t("empty.match") : t("empty.pieces"))}</div>`}
     <div class="fab">${`<label class="fab-cam" aria-label="${t("btn.takePhoto")}"><input type="file" accept="image/*" capture="environment" hidden data-upload="newpiece">${ICON.camera}</label>`}
       <button class="btn primary" data-act="new-piece">${ICON.plus} ${t("btn.newPiece")}</button></div>`;
 };
+/** One photo in the wall, with the piece's name under it when titles are on. */
+function pieceTile(p) {
+  const st = stageOf(p), s = p.sale || {};
+  const hay = [p.title, p.notes, ...(p.tags || []).map((x) => label("tag", x)), ...(p.technique || []).map((x) => label("tech", x))].join(" ").toLowerCase();
+  return `<a class="ptile" href="#/piece/${esc(p.id)}" data-hay="${esc(hay)}">
+    <span class="shot">${img(coverOf(p))}<span class="pill st-${st}">${t("stage." + st)}</span>${s.status === "sold" ? `<i class="sold">${esc(money(salePrice(p)))}</i>` : ""}</span>
+    ${SETTINGS.gridTitles ? `<span class="cap"><b>${esc(pieceName(p))}</b><i>${esc(dateText(p.started))}</i></span>` : ""}
+  </a>`;
+}
 function pieceCard(p) {
   const st = stageOf(p), s = p.sale || {};
   const line = [t("stage." + st), s.status === "sold" ? `${t("sale.sold")}${has(s.price) || has(s.ask) ? " " + money(has(s.price) ? s.price : s.ask) : ""}`
@@ -410,41 +428,6 @@ const TAB_BODY = {
   }
 };
 
-VIEWS.gallery = () => {
-  const F = SETTINGS.galleryFilters;
-  const all = [];
-  for (const p of Object.values(DB.pieces)) for (const ph of p.photos || []) all.push({ p, ph });
-  const tagsIn = (x) => new Set([...(x.ph.tags || []), ...(x.p.tags || [])]);
-  const shown = all.filter((x) =>
-    (!F.tag || tagsIn(x).has(F.tag)) &&
-    (!F.stage || x.ph.stage === F.stage) &&
-    (!F.technique || (x.p.technique || []).includes(F.technique)) &&
-    (!F.sale || ((x.p.sale && x.p.sale.status) || "not") === F.sale) &&
-    (!F.outcome || (x.p.final && x.p.final.outcome) === F.outcome) &&
-    (!F.from || (x.ph.at || "") >= F.from) && (!F.to || (x.ph.at || "") <= F.to)
-  ).sort((a, b) => (b.ph.at || "").localeCompare(a.ph.at || ""));
-  const active = Object.values(F).filter(Boolean).length;
-  const usedTags = [...new Set(all.flatMap((x) => [...tagsIn(x)]))];
-  const g = (key, vals, lab) => `<div class="fgroup"><span class="lbl">${t("filter." + key)}</span>${chips("gf." + key, vals, F[key], lab, { single: true })}</div>`;
-  const stageWords = `<div class="wordtabs">${["", ...STAGES].map((v) => `<button data-act="chip" data-group="gf.stage" data-val="${v}" data-single aria-pressed="${(F.stage || "") === v}">${v ? t("stage." + v) : (LANG === "zh" ? "全部" : "All")}</button>`).join("")}</div>`;
-  return `
-    <div class="toolbar">${stageWords}
-      <div class="row between"><span class="meta">${t("photos.count", { n: shown.length })}</span>
-        <span class="row">${active ? `<button class="btn small ghost" data-act="clear-filters">${t("btn.clear")}</button>` : ""}<button class="btn small${active ? " primary" : ""}" data-act="toggle-filters">${ICON.filter} ${LANG === "zh" ? "筛选" : "Filters"}${active ? " · " + active : ""}</button></span></div></div>
-    <div class="filters"${FILTERS_OPEN ? "" : " hidden"}>
-      ${g("stage", STAGES, (v) => t("stage." + v))}
-      ${usedTags.length ? g("tag", usedTags, (v) => label("tag", v)) : ""}
-      ${g("technique", TECHNIQUES, (v) => t("tech." + v))}
-      ${g("sale", SALES, (v) => t("sale." + v))}
-      ${g("outcome", OUTCOMES, (v) => t("outcome." + v))}
-      <div class="fgroup"><span class="lbl">${t("filter.date")}</span><div class="grid2">
-        <label class="field"><span>${t("f.dateFrom")}</span><input type="date" data-gf="from" value="${esc(F.from || "")}"></label>
-        <label class="field"><span>${t("f.dateTo")}</span><input type="date" data-gf="to" value="${esc(F.to || "")}"></label></div></div>
-    </div>
-    <div class="gallery">${shown.map((x) => `<button class="g-item" data-act="photo" data-owner="${esc(x.p.id)}" data-pid="${esc(x.ph.id)}">${img(x.ph)}<span class="pill st-${x.ph.stage}">${t("stage." + x.ph.stage)}</span></button>`).join("")}</div>
-    ${shown.length ? "" : empty(t("empty.gallery"))}`;
-};
-let FILTERS_OPEN = false;
 
 let FIRE_WHERE = "all";
 VIEWS.firings = () => {
@@ -881,8 +864,8 @@ document.addEventListener("click", async (e) => {
     }
     case "ideas-tab": SETTINGS.ideasTab = el.dataset.val; saveSettings(); render(); return;
     case "ideas-open": SETTINGS.ideasTab = el.dataset.val; saveSettings(); return;   // the link carries on to #/ideas
-    case "toggle-filters": FILTERS_OPEN = !FILTERS_OPEN; render(true); return;
-    case "clear-filters": SETTINGS.galleryFilters = {}; saveSettings(); render(true); return;
+    case "piece-view": SETTINGS.pieceView = SETTINGS.pieceView === "list" ? "grid" : "list"; saveSettings(); render(true); return;
+    case "piece-titles": SETTINGS.gridTitles = !SETTINGS.gridTitles; saveSettings(); render(true); return;
     case "clay-add": rec.clay = [...(rec.clay || []), { type: (rec.clay && rec.clay.length) ? "" : (listValues("clay")[0] || ""), g: null }]; changed(rec, true); return;
     case "clay-del": rec.clay.splice(Number(el.dataset.i), 1); changed(rec, true); return;
     case "delete": {
@@ -989,6 +972,46 @@ document.addEventListener("click", (e) => {
   closeSwipe();
 }, true);
 
+/* Hold a tag, glaze, clay, studio or one of your own shapes for half a second to remove it.
+ * Built-in shapes and anything already typed into a piece stay where they are. */
+let pressTimer = null, pressedChip = null;
+function longPress(el) {
+  pressedChip = null;
+  const rec = recOf(el);
+  if (el.dataset.act === "shape") {
+    const sh = DB.shapes[el.dataset.val];
+    if (!sh) return;   // a built-in shape
+    if (!confirm(t("confirm.removeShape", { name: sh.name }))) return;
+    for (const p of Object.values(DB.pieces)) if (p.shape === sh.id) { p.shape = "box"; touch(p); }
+    removeRecord("shapes", sh.id); save(); render(true); return;
+  }
+  const list = el.dataset.from, val = el.dataset.val;
+  if (!list || !val) return;
+  if (!confirm(t("confirm.removeTag", { name: el.textContent.trim() }))) return;
+  listRemove(list, val);
+  if (rec) {   // and untick it here, so the piece doesn't keep a tag you just retired
+    const cur = getPath(rec, el.dataset.group);
+    if (Array.isArray(cur)) setPath(rec, el.dataset.group, cur.filter((x) => x !== val));
+    else if (cur === val) setPath(rec, el.dataset.group, null);
+    touch(rec);
+  }
+  save(); render(true);
+}
+document.addEventListener("touchstart", (e) => {
+  const el = e.target.closest(".chip[data-from], .chip[data-act='shape']");
+  clearTimeout(pressTimer);
+  if (!el) return;
+  pressedChip = el;
+  pressTimer = setTimeout(() => { if (pressedChip === el) { navigator.vibrate && navigator.vibrate(12); longPress(el); } }, 550);
+}, { passive: true });
+["touchend", "touchmove", "touchcancel", "scroll"].forEach((ev) => document.addEventListener(ev, () => { clearTimeout(pressTimer); pressedChip = null; }, { passive: true }));
+document.addEventListener("contextmenu", (e) => {   // right-click on a computer, and the iOS hold menu
+  const el = e.target.closest(".chip[data-from], .chip[data-act='shape']");
+  if (!el) return;
+  e.preventDefault();
+  if (!("ontouchstart" in window)) longPress(el);
+});
+
 function onChip(el, rec) {
   const group = el.dataset.group, val = el.dataset.val, single = el.dataset.single !== undefined;
   if (group === "addStage") { ROUTE.addStage = val; $$(`[data-group="addStage"]`).forEach((b) => b.setAttribute("aria-pressed", b.dataset.val === val)); return; }
@@ -1087,7 +1110,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "16";
+const APP_VERSION = "17";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
