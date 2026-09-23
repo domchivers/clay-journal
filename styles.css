@@ -156,12 +156,17 @@ select.unit { width: auto; min-height: 34px; padding: 4px 8px; border-color: tra
 .swipe { position: relative; overflow: hidden; }
 .swipe + .swipe .card { border-top: 0; }
 .swipe .card { background: var(--card); transition: transform .18s ease; touch-action: pan-y; position: relative; z-index: 1; }
+.swipe.open .card { box-shadow: -6px 0 12px -8px rgba(40, 24, 10, .35); }
 .swipe.dragging .card { transition: none; }
 .swipe.open .card { transform: translateX(-92px); }
 .swipe-del {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 92px; border: 0; z-index: 0;
-  background: var(--danger); color: #fff; font: inherit; font-size: 14px; font-weight: 550; cursor: pointer;
+  position: absolute; top: 4px; right: 0; bottom: 4px; width: 88px; border: 0; z-index: 0; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 14%, var(--card)); color: var(--danger);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font: inherit; font-size: 12px; font-weight: 550; cursor: pointer;
 }
+.swipe-del svg { width: 19px; height: 19px; }
+.swipe.open .swipe-del { background: var(--danger); color: #fff; }
 .toolbar { display: flex; flex-direction: column; gap: 8px; padding: 4px 20px 2px; }
 .search { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--muted); }
 .search input { border: 0; background: none; padding: 10px 0; }
@@ -269,6 +274,12 @@ img.missing { background: repeating-linear-gradient(45deg, var(--soft), var(--so
 .mini .over { position: absolute; top: 0; right: 0; width: 28px; height: 28px; background: rgba(20, 16, 12, .5); color: #fff; border-radius: 0 0 0 8px; }
 .mini .over svg { width: 15px; height: 15px; }
 
+.item { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; background: var(--card); }
+.item-top { display: flex; gap: 8px; align-items: center; }
+.item-top select { flex: 1; min-width: 0; }
+.item-num { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.item-num span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.item .rate { margin-top: 6px; }
 .costs { margin: 4px 0 14px; }
 .costrow { display: flex; align-items: baseline; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
 .costrow i { font-style: normal; font-size: 12.5px; color: var(--faint); }

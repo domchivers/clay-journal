@@ -11,13 +11,14 @@
 
 const LS_DB = "clay.db.v1", LS_SETTINGS = "clay.settings.v1";
 const COLLECTIONS = ["pieces", "firings", "designs", "insps", "purchases", "shapes"];
-const LISTS = ["tags", "clay", "glazes", "channels", "studios"];
+const LISTS = ["tags", "clay", "glazes", "channels", "studios", "stores"];
 const DEFAULT_LISTS = {
   tags: ["cup", "plate", "bowl", "vase", "marbled", "coffee_cup"],
   clay: ["white", "red", "black", "stoneware", "porcelain"],
   glazes: [],
   channels: ["instagram", "xhs", "inperson", "market"],
-  studios: []
+  studios: [],
+  stores: []
 };
 const TOMBSTONE_DAYS = 90;
 
@@ -37,6 +38,10 @@ function emptyDB() {
  * place, so nothing typed before the change is lost (sizes still read through mget). */
 function migrate(db) {
   const set = (v) => v !== null && v !== undefined && v !== "";
+  for (const b of Object.values(db.purchases || {})) {
+    if (!Array.isArray(b.items)) b.items = (b.kind || b.name || b.grams != null || b.cost != null)
+      ? [{ kind: b.kind || "clay", name: b.name || "", grams: b.grams, cost: b.cost }] : [];
+  }
   for (const p of Object.values(db.pieces || {})) {
     if (p.wet && set(p.wet.trimmed) && !(p.trim && set(p.trim.weight))) {
       p.trim = Object.assign({}, p.trim, { weight: p.wet.trimmed });
@@ -57,7 +62,7 @@ let DB = (() => { try { return normalise(JSON.parse(localStorage.getItem(LS_DB))
 let SETTINGS = (() => {
   let s = {}; try { s = JSON.parse(localStorage.getItem(LS_SETTINGS)) || {}; } catch (e) {}
   const zh = /^zh/i.test(navigator.language || "");
-  return Object.assign({ lang: zh ? "zh" : "en", currency: zh ? "¥" : "£", unit: "cm", ideasTab: "designs", pieceView: "grid", gridTitles: true }, s);
+  return Object.assign({ lang: zh ? "zh" : "en", currency: zh ? "¥" : "£", unit: "cm", ideasTab: "designs", pieceView: "titles" }, s);
 })();
 
 function saveSettings() { try { localStorage.setItem(LS_SETTINGS, JSON.stringify(SETTINGS)); } catch (e) {} }

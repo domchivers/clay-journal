@@ -92,13 +92,30 @@ function calc(p) {
  * Materials are priced from what you actually paid: every purchase of a clay or glaze adds to
  * its total grams and total cost, and the piece is charged the average rate for what it used.
  * A firing's fee and travel are shared equally between the pieces in that firing. */
+/* One order can carry several bags and one delivery fee. The fee is spread over the
+ * things on that order in proportion to what they cost, so a heavy cheap bag doesn't
+ * carry the whole postage. */
+function orderLines(b) {
+  const items = (b.items || []).filter((x) => x && (has(x.grams) || has(x.cost)));
+  const priced = items.filter((x) => has(x.cost));
+  const goods = priced.reduce((a, x) => a + Number(x.cost), 0);
+  const fee = has(b.delivery) ? Number(b.delivery) : 0;
+  return items.map((x) => {
+    const cost = has(x.cost) ? Number(x.cost) : 0;
+    const share = !fee ? 0 : goods > 0 ? fee * (cost / goods) : fee / items.length;
+    return { kind: x.kind || "clay", name: x.name, grams: has(x.grams) ? Number(x.grams) : 0, cost, share, total: cost + share };
+  });
+}
+const orderTotal = (b) => orderLines(b).reduce((a, l) => a + l.cost, 0) + (has(b.delivery) ? Number(b.delivery) : 0);
 function rateFor(kind, name) {
   let g = 0, c = 0;
   for (const b of Object.values(DB.purchases)) {
-    if (b.kind !== kind || b.name !== name) continue;
-    if (has(b.grams) && has(b.cost)) { g += Number(b.grams); c += Number(b.cost); }
+    for (const l of orderLines(b)) {
+      if (l.kind !== kind || l.name !== name || !l.grams) continue;
+      g += l.grams; c += l.total;
+    }
   }
-  return g > 0 ? c / g : null;   // cost per gram, or null when nothing has been bought
+  return g > 0 ? c / g : null;   // cost per gram including delivery, or null when nothing has been bought
 }
 function firingShare(fid) {
   const f = DB.firings[fid];
@@ -211,6 +228,12 @@ function firingSelect(path, current, type) {
 function uploadBtn(target, capture, text) {
   return `<label class="btn ${capture ? "primary" : ""}"><input type="file" accept="image/*" hidden data-upload="${target}"${capture ? ' capture="environment"' : " multiple"}>${capture ? ICON.camera : ICON.image} ${esc(text)}</label>`;
 }
+/** Wraps a row so it can be swiped aside to show Delete. */
+function swipeable(inner, coll, id, hay) {
+  return `<div class="swipe" data-coll="${esc(coll)}" data-id="${esc(id)}"${hay ? ` data-hay="${esc(hay)}"` : ""}>
+    <button class="swipe-del" data-act="swipe-delete" data-coll="${esc(coll)}" data-id="${esc(id)}">${ICON.trash}<span>${t("btn.delete")}</span></button>
+    ${inner}</div>`;
+}
 function empty(text) { return `<p class="empty">${esc(text)}</p>`; }
 
 const ICON = {
@@ -225,9 +248,11 @@ const ICON = {
   image: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5l4.7-4.2a2 2 0 0 1 2.7 0l3.3 3M14 15.2l1.9-1.6a2 2 0 0 1 2.6 0l2 1.7"/></svg>',
   list: '<svg viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></svg>',
   grid: '<svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>',
+  gridText: '<svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><path d="M3.5 14.5h7M3.5 18h5M13.5 14.5h7M13.5 18h5"/></svg>',
   text: '<svg viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h11M4 17.5h7"/></svg>',
   plus: '<svg viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></svg>',
   back: '<svg viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>',
+  trash: '<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V5.5A1.5 1.5 0 0 1 11.5 4h1A1.5 1.5 0 0 1 14 5.5V7M6.5 7l.8 11.6A1.5 1.5 0 0 0 8.8 20h6.4a1.5 1.5 0 0 0 1.5-1.4L17.5 7M10.5 10.5v6M13.5 10.5v6"/></svg>',
   x: '<svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
   search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.6"/><path d="M19.5 19.5l-3.8-3.8"/></svg>',
   chevron: '<svg viewBox="0 0 24 24"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>',
@@ -258,14 +283,14 @@ VIEWS.pieces = () => {
   const filters = ["all", ...STAGES, "for", "sold"];
   const shown = all.filter((p) => PIECE_FILTER === "all" ? true : STAGES.includes(PIECE_FILTER) ? stageOf(p) === PIECE_FILTER : (p.sale && p.sale.status) === PIECE_FILTER);
   const fl = (v) => v === "all" ? (LANG === "zh" ? "全部" : "All") : STAGES.includes(v) ? t("stage." + v) : t("sale." + v);
-  const grid = SETTINGS.pieceView !== "list";
+  const view = ["grid", "titles", "list"].includes(SETTINGS.pieceView) ? SETTINGS.pieceView : "grid";
+  const grid = view !== "list";
   return `
     ${all.length ? `<div class="toolbar"><label class="search">${ICON.search}<input type="search" data-search placeholder="${t("search")}"></label>
       <div class="row between"><div class="wordtabs">${filters.map((v) => `<button data-act="piece-filter" data-val="${v}" aria-pressed="${PIECE_FILTER === v}">${esc(fl(v))}</button>`).join("")}</div>
-      <span class="row viewtoggle">${grid ? `<button class="icon-btn" data-act="piece-titles" aria-pressed="${!!SETTINGS.gridTitles}" aria-label="${t("f.titles")}">${ICON.text}</button>` : ""}
-        <button class="icon-btn" data-act="piece-view" aria-label="${t("f.layout")}">${grid ? ICON.list : ICON.grid}</button></span></div></div>` : ""}
+      <button class="icon-btn" data-act="piece-view" aria-label="${t("f.layout")}" title="${t("f.layout")}">${{ grid: ICON.grid, titles: ICON.gridText, list: ICON.list }[view]}</button></div></div>` : ""}
     ${grid
-      ? `<div class="pgrid${SETTINGS.gridTitles ? " titled" : ""}">${shown.map(pieceTile).join("")}</div>${shown.length ? "" : empty(all.length ? t("empty.match") : t("empty.pieces"))}`
+      ? `<div class="pgrid${view === "titles" ? " titled" : ""}">${shown.map(pieceTile).join("")}</div>${shown.length ? "" : empty(all.length ? t("empty.match") : t("empty.pieces"))}`
       : `<div class="cards">${shown.map(pieceCard).join("") || empty(all.length ? t("empty.match") : t("empty.pieces"))}</div>`}
     <div class="fab">${`<label class="fab-cam" aria-label="${t("btn.takePhoto")}"><input type="file" accept="image/*" capture="environment" hidden data-upload="newpiece">${ICON.camera}</label>`}
       <button class="btn primary" data-act="new-piece">${ICON.plus} ${t("btn.newPiece")}</button></div>`;
@@ -274,9 +299,9 @@ VIEWS.pieces = () => {
 function pieceTile(p) {
   const st = stageOf(p), s = p.sale || {};
   const hay = [p.title, p.notes, ...(p.tags || []).map((x) => label("tag", x)), ...(p.technique || []).map((x) => label("tech", x))].join(" ").toLowerCase();
-  return `<a class="ptile" href="#/piece/${esc(p.id)}" data-hay="${esc(hay)}">
+  return `<a class="ptile" href="#/piece/${esc(p.id)}" data-hay="${esc(hay)}" data-hold="pieces:${esc(p.id)}">
     <span class="shot">${img(coverOf(p))}<span class="pill st-${st}">${t("stage." + st)}</span>${s.status === "sold" ? `<i class="sold">${esc(money(salePrice(p)))}</i>` : ""}</span>
-    ${SETTINGS.gridTitles ? `<span class="cap"><b>${esc(pieceName(p))}</b><i>${esc(dateText(p.started))}</i></span>` : ""}
+    ${SETTINGS.pieceView === "titles" ? `<span class="cap"><b>${esc(pieceName(p))}</b><i>${esc(dateText(p.started))}</i></span>` : ""}
   </a>`;
 }
 function pieceCard(p) {
@@ -285,13 +310,12 @@ function pieceCard(p) {
     : s.status === "for" ? `${t("sale.for")}${has(s.ask) ? " " + money(s.ask) : ""}`
     : p.final && p.final.outcome && p.final.outcome !== "success" ? t("outcome." + p.final.outcome) : dateText(p.started)].filter(Boolean).join(" · ");
   const hay = [p.title, p.notes, ...(p.tags || []).map((x) => label("tag", x)), ...(p.technique || []).map((x) => label("tech", x)), ...((p.glaze && p.glaze.glazes) || [])].join(" ").toLowerCase();
-  return `<div class="swipe" data-hay="${esc(hay)}"><button class="swipe-del" data-act="swipe-delete" data-id="${esc(p.id)}">${t("btn.delete")}</button>
-    <a class="card piece" href="#/piece/${esc(p.id)}">
+  return swipeable(`<a class="card piece" href="#/piece/${esc(p.id)}">
     ${img(coverOf(p), "thumb")}
     <div class="card-body">
       <div class="card-title">${esc(pieceName(p))}</div>
       <div class="meta"><i class="dot st-${st}"></i>${esc(line)}</div>
-    </div></a></div>`;
+    </div></a>`, "pieces", p.id, hay);
 }
 
 /* A piece is one stage at a time: the tabs across the top swap what's below them, so only
@@ -436,11 +460,11 @@ VIEWS.firings = () => {
   return `<div class="toolbar"><div class="wordtabs">${["all", "studio", "home"].map((w) => `<button data-act="fire-where" data-val="${w}" aria-pressed="${FIRE_WHERE === w}">${w === "all" ? t("fire.all") : t("fire." + w)}</button>`).join("")}</div></div>
   <div class="cards">${fs.map((f) => {
     const ps = piecesInFiring(f.id);
-    return `<a class="card firing" href="#/firing/${esc(f.id)}">
+    return swipeable(`<a class="card firing" href="#/firing/${esc(f.id)}">
       <div class="card-body"><div class="card-title">${esc(dateText(f.date, true))} · ${esc(label("ftype", f.type))}</div>
       <div class="meta">${esc([(f.where || "home") === "studio" ? (f.studio ? label("studio", f.studio) : t("fire.studio")) : t("fire.home"), f.cone, t("pieces.count", { n: ps.length }),
         has(f.fee) || has(f.travel) ? money((has(f.fee) ? Number(f.fee) : 0) + (has(f.travel) ? Number(f.travel) : 0)) : ""].filter(Boolean).join(" · "))}</div></div>
-      <div class="stack">${ps.slice(0, 4).map((p) => img(coverOf(p), "tiny")).join("")}</div></a>`;
+      <div class="stack">${ps.slice(0, 4).map((p) => img(coverOf(p), "tiny")).join("")}</div></a>`, "firings", f.id);
   }).join("") || empty(t("empty.firings"))}</div>
   <div class="fab"><button class="btn primary" data-act="new-firing">${ICON.plus} ${t("btn.newFiring")}</button></div>`;
 };
@@ -475,12 +499,12 @@ VIEWS.ideas = () => {
   const seg = `<div class="toolbar"><div class="wordtabs">${["designs", "insp"].map((x) => `<button data-act="ideas-tab" data-val="${x}" aria-pressed="${tab === x}">${t("ideas." + x)}</button>`).join("")}</div></div>`;
   if (tab === "designs") {
     const ds = Object.values(DB.designs).sort((a, b) => b.createdAt - a.createdAt);
-    return `${seg}<div class="tiles">${ds.map((d) => `<a class="tile" href="#/design/${esc(d.id)}">${d.image ? img(d.image) : `<div class="tile-text">${esc(d.description || "")}</div>`}<span class="pill ds-${d.status || "concept"}">${t("dstatus." + (d.status || "concept"))}</span></a>`).join("")}</div>
+    return `${seg}<div class="tiles">${ds.map((d) => `<a class="tile" href="#/design/${esc(d.id)}" data-hold="designs:${esc(d.id)}">${d.image ? img(d.image) : `<div class="tile-text">${esc(d.description || "")}</div>`}<span class="pill ds-${d.status || "concept"}">${t("dstatus." + (d.status || "concept"))}</span></a>`).join("")}</div>
       ${ds.length ? "" : empty(t("empty.designs"))}
       <div class="fab"><button class="btn primary" data-act="new-design">${ICON.plus} ${t("btn.newDesign")}</button></div>`;
   }
   const is = Object.values(DB.insps).sort((a, b) => b.createdAt - a.createdAt);
-  return `${seg}<div class="tiles">${is.map((x) => `<a class="tile" href="#/insp/${esc(x.id)}">${x.image ? img(x.image) : `<div class="tile-text">${esc(x.notes || x.source || "")}</div>`}</a>`).join("")}</div>
+  return `${seg}<div class="tiles">${is.map((x) => `<a class="tile" href="#/insp/${esc(x.id)}" data-hold="insps:${esc(x.id)}">${x.image ? img(x.image) : `<div class="tile-text">${esc(x.notes || x.source || "")}</div>`}</a>`).join("")}</div>
     ${is.length ? "" : empty(t("empty.insp"))}
     <div class="fab"><label class="fab-cam"><input type="file" accept="image/*" hidden data-upload="newinsp">${ICON.image}</label><button class="btn primary" data-act="new-insp">${ICON.plus} ${t("btn.newInsp")}</button></div>`;
 };
@@ -532,16 +556,17 @@ VIEWS.costs = () => {
   const words = `<div class="toolbar"><div class="wordtabs">${["materials", "pieces"].map((k) => `<button data-act="costs-tab" data-val="${k}" aria-pressed="${COSTS_TAB === k}">${t("costs." + k)}</button>`).join("")}</div></div>`;
   if (COSTS_TAB === "materials") {
     const buys = Object.values(DB.purchases).sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt);
-    const spent = buys.reduce((a, b) => a + (has(b.cost) ? Number(b.cost) : 0), 0);
-    const nameOf = (b) => b.kind === "clay" ? label("clay", b.name) : b.name;
+    const spent = buys.reduce((a, b) => a + orderTotal(b), 0);
+    const nameOf = (l) => l.kind === "clay" ? label("clay", l.name) : l.name;
     return `${words}
       ${buys.length ? `<div class="rows"><div class="srow">${t("cost.spent")}<span class="v">${esc(money(spent))}</span></div></div>` : ""}
       <div class="cards">${buys.map((b) => {
-        const rate = has(b.grams) && has(b.cost) && b.grams > 0 ? money(b.cost / b.grams * 1000) + "/kg" : "";
-        return `<a class="card" href="#/purchase/${esc(b.id)}"><div class="card-body">
-          <div class="card-title">${esc(nameOf(b) || t("buy." + b.kind))}</div>
-          <div class="meta">${esc([t("buy." + b.kind), has(b.grams) ? `${fmt(b.grams, 0)} g` : "", rate, dateText(b.date)].filter(Boolean).join(" · "))}</div>
-        </div><b>${has(b.cost) ? esc(money(b.cost)) : ""}</b></a>`;
+        const ls = orderLines(b);
+        const what = ls.map((l) => nameOf(l) || t("buy." + l.kind)).filter(Boolean).join(", ");
+        return swipeable(`<a class="card" href="#/purchase/${esc(b.id)}"><div class="card-body">
+          <div class="card-title">${esc(b.store ? label("store", b.store) : (what || t("buy.new")))}</div>
+          <div class="meta">${esc([b.store ? what : "", dateText(b.date), has(b.delivery) && Number(b.delivery) ? `${t("buy.delivery")} ${money(b.delivery)}` : ""].filter(Boolean).join(" · "))}</div>
+        </div><b>${orderTotal(b) ? esc(money(orderTotal(b))) : ""}</b></a>`, "purchases", b.id);
       }).join("") || empty(t("buy.none"))}</div>
       <div class="fab"><button class="btn primary" data-act="new-purchase">${ICON.plus} ${t("buy.new")}</button></div>`;
   }
@@ -567,14 +592,33 @@ VIEWS.costs = () => {
 VIEWS.purchase = (r) => {
   const b = DB.purchases[r.id];
   if (!b) return null;
-  const names = b.kind === "glaze" ? listValues("glazes") : listValues("clay");
-  const rate = has(b.grams) && has(b.cost) && b.grams > 0 ? t("buy.rate", { rate: money(b.cost / b.grams * 1000) }) : "";
+  const lines = orderLines(b);
+  const rows = (b.items || []).map((it, i) => {
+    const kind = it.kind || "clay";
+    const names = [...new Set([...listValues(kind === "glaze" ? "glazes" : "clay"), it.name].filter(Boolean))];
+    const line = lines.find((l) => l.name === it.name && l.kind === kind);
+    const rate = line && line.grams ? `${money(line.total / line.grams * 1000)}/kg` : "";
+    return `<div class="item">
+      <div class="item-top">
+        <select data-f="items.${i}.kind">${["clay", "glaze"].map((k) => `<option value="${k}"${k === kind ? " selected" : ""}>${t("buy." + k)}</option>`).join("")}</select>
+        <select data-f="items.${i}.name" data-list="${kind === "glaze" ? "glazes" : "clay"}"><option value="">${t("buy.name")}</option>${names.map((v) => `<option value="${esc(v)}"${v === it.name ? " selected" : ""}>${esc(kind === "clay" ? label("clay", v) : v)}</option>`).join("")}<option value="__new__">+ …</option></select>
+        <button class="icon-btn" data-act="item-del" data-i="${i}" aria-label="${t("btn.delete")}">${ICON.x}</button>
+      </div>
+      <div class="item-num">
+        <label><span>${t("buy.amount")}</span>${numIn(`items.${i}.grams`, it.grams)}</label>
+        <label><span>${t("buy.cost")} (${esc(SETTINGS.currency)})</span>${numIn(`items.${i}.cost`, it.cost)}</label>
+      </div>
+      ${rate ? `<div class="meta rate">${esc(t("buy.rate", { rate }))}</div>` : ""}
+    </div>`;
+  }).join("");
   return `<div data-rec data-coll="purchases" data-id="${esc(b.id)}" class="editor pad">
-    ${field(t("buy.kind"), chips("kind", ["clay", "glaze"], b.kind, (v) => t("buy." + v), { single: true }))}
-    ${field(t("buy.name"), chips("name", [...new Set([...names, b.name].filter(Boolean))], b.name, (v) => b.kind === "clay" ? label("clay", v) : v, { single: true, add: b.kind === "glaze" ? "glazes" : "clay" }))}
-    <div class="grid2">${field(t("buy.amount"), numIn("grams", b.grams))}${field(`${t("buy.cost")} (${esc(SETTINGS.currency)})`, numIn("cost", b.cost))}</div>
-    ${rate ? `<div class="calc"><span>${esc(rate)}</span></div>` : ""}
-    ${field(t("f.date"), dateIn("date", b.date))}
+    ${field(t("buy.store"), chips("store", [...new Set([...listValues("stores"), b.store].filter(Boolean))], b.store, (v) => label("store", v), { single: true, add: "stores" }))}
+    <div class="grid2">${field(t("f.date"), dateIn("date", b.date))}${field(`${t("buy.delivery")} (${esc(SETTINGS.currency)})`, numIn("delivery", b.delivery))}</div>
+    <span class="lbl">${t("buy.items")}</span>
+    ${rows}
+    <button class="btn small" data-act="item-add">${ICON.plus} ${t("buy.addItem")}</button>
+    ${orderTotal(b) ? `<div class="calc"><span>${t("buy.orderTotal")}</span><b>${esc(money(orderTotal(b)))}</b></div>` : ""}
+    ${has(b.delivery) && Number(b.delivery) ? `<p class="meta">${t("buy.deliveryNote")}</p>` : ""}
     ${field(t("f.notes"), textIn("note", b.note))}
     <button class="btn danger wide" data-act="delete" data-coll="purchases">${t("btn.delete")}</button>
   </div>`;
@@ -662,7 +706,7 @@ function detailTitle() {
   if (r.name === "design") return t("ideas.designs");
   if (r.name === "insp") return t("ideas.insp");
   if (r.name === "more" || r.name === "settings") return t("tab.settings");
-  if (r.name === "purchase") return t("buy." + (DB.purchases[r.id] || {}).kind || "buy.new");
+  if (r.name === "purchase") return t("buy.order");
   return "";
 }
 function hydrate(root) {
@@ -801,7 +845,7 @@ document.addEventListener("change", (e) => {
   if (!rec) return;
   let v = el.value;
   if (v === "__new__" && el.dataset.list) {
-    const name = prompt(LANG === "zh" ? "新泥料名称" : "New clay type");
+    const name = prompt(el.dataset.list === "glazes" ? t("addGlaze") : (LANG === "zh" ? "新泥料名称" : "New clay type"));
     if (!name || !name.trim()) { el.value = getPath(rec, el.dataset.f) || ""; return; }
     listAdd(el.dataset.list, name); v = name.trim();
   } else if (v === "__new__" && el.dataset.firingType) {
@@ -833,7 +877,7 @@ document.addEventListener("click", async (e) => {
       listAdd(name, v);
       const group = el.dataset.group;
       if (group && group.startsWith("ph.")) { const { rec: r, ph } = sheetPhoto(); ph.tags = [...new Set([...(ph.tags || []), v.trim()])]; touch(r); save(); drawSheet(); return; }
-      if (group && rec && ["name", "studio"].includes(group)) { setPath(rec, group, v.trim()); touch(rec); }
+      if (group && rec && ["studio", "store"].includes(group)) { setPath(rec, group, v.trim()); touch(rec); }
       else if (group && rec) { const cur = getPath(rec, group) || []; setPath(rec, group, [...new Set([...cur, v.trim()])]); touch(rec); }
       save(); render(true); return;
     }
@@ -843,16 +887,14 @@ document.addEventListener("click", async (e) => {
     case "new-design": { const d = newRecord("designs", { status: "concept" }); save(); go("#/design/" + d.id); return; }
     case "new-insp": { const x = newRecord("insps", { tags: [] }); save(); go("#/insp/" + x.id); return; }
     case "design-from-insp": { const d = newRecord("designs", { status: "concept", inspId: ROUTE.id }); save(); go("#/design/" + d.id); return; }
-    case "swipe-delete": {
-      const p = DB.pieces[el.dataset.id];
-      if (!p || !confirm(`${t("confirm.deletePiece")}\n\n${pieceName(p)}`)) { closeSwipe(); return; }
-      removeRecord("pieces", p.id); save(); closeSwipe(); render(true); return;
-    }
+    case "swipe-delete": return deleteRecord(el.dataset.coll, el.dataset.id);
     case "piece-filter": PIECE_FILTER = el.dataset.val; render(true); return;
     case "piece-tab": PIECE_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
     case "costs-tab": COSTS_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
     case "fire-where": FIRE_WHERE = el.dataset.val; render(true); return;
-    case "new-purchase": { const b = newRecord("purchases", { kind: "clay", date: today() }); save(); go("#/purchase/" + b.id); return; }
+    case "new-purchase": { const b = newRecord("purchases", { date: today(), items: [{ kind: "clay" }] }); save(); go("#/purchase/" + b.id); return; }
+    case "item-add": rec.items = [...(rec.items || []), { kind: (rec.items || []).length ? rec.items[rec.items.length - 1].kind : "clay" }]; changed(rec, true); return;
+    case "item-del": rec.items.splice(Number(el.dataset.i), 1); changed(rec, true); return;
     case "shape": rec.shape = el.dataset.val; changed(rec, true); return;
     case "shape-new": {
       const name = prompt(t("shape.askName"));
@@ -864,23 +906,14 @@ document.addEventListener("click", async (e) => {
     }
     case "ideas-tab": SETTINGS.ideasTab = el.dataset.val; saveSettings(); render(); return;
     case "ideas-open": SETTINGS.ideasTab = el.dataset.val; saveSettings(); return;   // the link carries on to #/ideas
-    case "piece-view": SETTINGS.pieceView = SETTINGS.pieceView === "list" ? "grid" : "list"; saveSettings(); render(true); return;
-    case "piece-titles": SETTINGS.gridTitles = !SETTINGS.gridTitles; saveSettings(); render(true); return;
+    case "piece-view": {   // photos → photos with names → list → back
+      const order = ["grid", "titles", "list"];
+      SETTINGS.pieceView = order[(order.indexOf(SETTINGS.pieceView) + 1) % order.length] || "titles";
+      saveSettings(); render(true); return;
+    }
     case "clay-add": rec.clay = [...(rec.clay || []), { type: (rec.clay && rec.clay.length) ? "" : (listValues("clay")[0] || ""), g: null }]; changed(rec, true); return;
     case "clay-del": rec.clay.splice(Number(el.dataset.i), 1); changed(rec, true); return;
-    case "delete": {
-      const coll = el.dataset.coll;
-      if (!confirm(t({ pieces: "confirm.deletePiece", firings: "confirm.deleteFiring", designs: "confirm.deleteDesign", insps: "confirm.deleteInsp", purchases: "confirm.deletePurchase" }[coll]))) return;
-      const id = rec.id;
-      if (coll === "firings") for (const p of piecesInFiring(id)) { for (const k of ["bisque", "glaze"]) if (p[k] && p[k].firingId === id) p[k].firingId = null; touch(p); }
-      if (coll === "designs") for (const p of Object.values(DB.pieces)) if (p.designId === id) { p.designId = null; touch(p); }
-      if (coll === "insps") {
-        for (const p of Object.values(DB.pieces)) if ((p.inspIds || []).includes(id)) { p.inspIds = p.inspIds.filter((x) => x !== id); touch(p); }
-        for (const d of Object.values(DB.designs)) if (d.inspId === id) { d.inspId = null; touch(d); }
-      }
-      removeRecord(coll, id); save();
-      location.replace("#/" + TAB_OF[ROUTE.name]); return;
-    }
+    case "delete": return deleteRecord(el.dataset.coll, rec.id, true);
     case "photo": {
       const pid = el.dataset.pid;
       if (!pid) return;
@@ -966,6 +999,7 @@ document.addEventListener("touchend", () => {
 }, { passive: true });
 /* A tap on an open row closes it instead of opening the piece. */
 document.addEventListener("click", (e) => {
+  if (heldJustNow && Date.now() - heldJustNow < 600) { e.preventDefault(); e.stopPropagation(); return; }
   if (!swipeOpen) return;
   if (e.target.closest(".swipe-del")) return;
   if (e.target.closest(".swipe") === swipeOpen) { e.preventDefault(); e.stopPropagation(); }
@@ -974,9 +1008,10 @@ document.addEventListener("click", (e) => {
 
 /* Hold a tag, glaze, clay, studio or one of your own shapes for half a second to remove it.
  * Built-in shapes and anything already typed into a piece stay where they are. */
-let pressTimer = null, pressedChip = null;
+let pressTimer = null, pressedChip = null, heldJustNow = 0;
 function longPress(el) {
   pressedChip = null;
+  if (el.dataset.hold) { const [coll, id] = el.dataset.hold.split(":"); deleteRecord(coll, id); return; }
   const rec = recOf(el);
   if (el.dataset.act === "shape") {
     const sh = DB.shapes[el.dataset.val];
@@ -998,19 +1033,36 @@ function longPress(el) {
   save(); render(true);
 }
 document.addEventListener("touchstart", (e) => {
-  const el = e.target.closest(".chip[data-from], .chip[data-act='shape']");
+  const el = e.target.closest(".chip[data-from], .chip[data-act='shape'], [data-hold]");
   clearTimeout(pressTimer);
   if (!el) return;
   pressedChip = el;
-  pressTimer = setTimeout(() => { if (pressedChip === el) { navigator.vibrate && navigator.vibrate(12); longPress(el); } }, 550);
+  pressTimer = setTimeout(() => { if (pressedChip === el) { heldJustNow = Date.now(); navigator.vibrate && navigator.vibrate(12); longPress(el); } }, 550);
 }, { passive: true });
 ["touchend", "touchmove", "touchcancel", "scroll"].forEach((ev) => document.addEventListener(ev, () => { clearTimeout(pressTimer); pressedChip = null; }, { passive: true }));
 document.addEventListener("contextmenu", (e) => {   // right-click on a computer, and the iOS hold menu
-  const el = e.target.closest(".chip[data-from], .chip[data-act='shape']");
+  const el = e.target.closest(".chip[data-from], .chip[data-act='shape'], [data-hold]");
   if (!el) return;
   e.preventDefault();
   if (!("ontouchstart" in window)) longPress(el);
 });
+
+/** Delete anything, from its own page or from a swiped row, tidying up what referred to it. */
+function deleteRecord(coll, id, fromPage) {
+  const rec = DB[coll] && DB[coll][id];
+  if (!rec) { closeSwipe(); return; }
+  const what = { pieces: "confirm.deletePiece", firings: "confirm.deleteFiring", designs: "confirm.deleteDesign", insps: "confirm.deleteInsp", purchases: "confirm.deletePurchase", shapes: "confirm.removeShape" }[coll];
+  const name = coll === "pieces" ? pieceName(rec) : coll === "designs" ? designName(rec) : coll === "insps" ? inspName(rec) : coll === "firings" ? firingName(rec) : "";
+  if (!confirm(name ? `${t(what)}\n\n${name}` : t(what))) { closeSwipe(); return; }
+  if (coll === "firings") for (const p of piecesInFiring(id)) { for (const k of ["bisque", "glaze"]) if (p[k] && p[k].firingId === id) p[k].firingId = null; touch(p); }
+  if (coll === "designs") for (const p of Object.values(DB.pieces)) if (p.designId === id) { p.designId = null; touch(p); }
+  if (coll === "insps") {
+    for (const p of Object.values(DB.pieces)) if ((p.inspIds || []).includes(id)) { p.inspIds = p.inspIds.filter((x) => x !== id); touch(p); }
+    for (const d of Object.values(DB.designs)) if (d.inspId === id) { d.inspId = null; touch(d); }
+  }
+  removeRecord(coll, id); save(); closeSwipe();
+  if (fromPage) location.replace("#/" + (TAB_OF[ROUTE.name] || "pieces")); else render(true);
+}
 
 function onChip(el, rec) {
   const group = el.dataset.group, val = el.dataset.val, single = el.dataset.single !== undefined;
@@ -1025,9 +1077,8 @@ function onChip(el, rec) {
     touch(r); save(); drawSheet(); return;
   }
   if (!rec) return;
-  if (group === "kind" && rec.kind !== val) { rec.kind = val; rec.name = null; changed(rec, true); return; }
   const cur = getPath(rec, group);
-  if (single) setPath(rec, group, cur === val && !["sale.status", "status", "type", "kind", "where"].includes(group) ? null : val);
+  if (single) setPath(rec, group, cur === val && !["sale.status", "status", "type", "where"].includes(group) ? null : val);
   else { const arr = Array.isArray(cur) ? cur : []; setPath(rec, group, arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]); }
   if (group === "sale.status" && val === "sold" && !rec.sale.soldDate) rec.sale.soldDate = today();
   changed(rec, true);
@@ -1110,7 +1161,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "17";
+const APP_VERSION = "20";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });

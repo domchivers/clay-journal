@@ -18,8 +18,9 @@ plain rows instead of boxes, and the previous panelled design kept on the
 - **The wall**: Pieces opens as a grid of cover photos; tap one to open and edit that
   piece. Two buttons above it switch between the wall and a list, and turn the names
   underneath on or off.
-- **Costs**: log what you paid for a bag of clay or a tub of glaze and every piece is
-  costed from what it actually used, at the average rate you've paid. A communal
+- **Costs**: log an order — the shop, the bags of clay and tubs of glaze on it, and the
+  delivery fee, which is spread over them in proportion to what each cost. Every piece
+  is then costed from what it actually used, at the average rate you've paid. A communal
   firing's fee and travel are split equally between the pieces in it, and each piece's
   Cost tab shows the breakdown, any extra cost, the asking or sale price and the profit.
 - **Firings**: home kiln or communal kiln. A communal trip records the studio, the fee,
@@ -35,8 +36,9 @@ plain rows instead of boxes, and the previous panelled design kept on the
 
 Every number is optional: log the wet stage today and fill in bisque numbers next week.
 
-Hold a tag, clay, glaze, studio or one of your own shapes to take it off the list.
-In list view, swipe a row left to uncover **Delete** (it still asks first);
+Hold a tag, clay, glaze, studio or one of your own shapes to take it off the list,
+and hold a photo tile to delete that piece, design or inspiration.
+In any list, swipe a row left to uncover **Delete** (it still asks first);
 tap the row again to put it back.
 
 ## Running it
