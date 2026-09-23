@@ -8,6 +8,9 @@ button at the top.
   (total adds itself up), wet / bisque / final dimensions with **shrinkage worked out
   automatically**, weights before and after trimming, drying, glazes and how they
   went on, outcome and defects, photos tagged by stage, sales.
+- **Handles** (optional, inside each stage): length as cut, then the attached handle's
+  length, width and height at the wet stage, after bisque and on the finished piece,
+  with its own shrinkage worked out.
 - **Gallery**: every photo from every piece, filterable by stage, tag, technique,
   sale status, outcome and date.
 - **Firings**: one record per kiln run, many pieces per firing. Pick one or create

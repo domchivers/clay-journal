@@ -2,8 +2,8 @@
  * Each fresh copy is also kept in the cache, which is what the app runs from when offline
  * (or when the studio Wi-Fi is too slow to answer within a few seconds).
  * Only registers over HTTPS or localhost. */
-const CACHE = "clay-v3";
-const ASSETS = ["./", "./index.html", "./styles.css?v=3", "./i18n.js?v=3", "./supabase-config.js?v=3", "./cloud.js?v=3", "./store.js?v=3", "./app.js?v=3", "./manifest.webmanifest", "./icons/icon-192.png?v=1", "./icons/icon-180.png?v=1"];
+const CACHE = "clay-v4";
+const ASSETS = ["./", "./index.html", "./styles.css?v=4", "./i18n.js?v=4", "./supabase-config.js?v=4", "./cloud.js?v=4", "./store.js?v=4", "./app.js?v=4", "./manifest.webmanifest", "./icons/icon-192.png?v=1", "./icons/icon-180.png?v=1"];
 const SLOW_MS = 4000;
 
 self.addEventListener("install", (e) => {

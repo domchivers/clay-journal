@@ -32,9 +32,9 @@ function setPath(o, path, v) {
 function stageOf(p) {
   const any = (o, ks) => o && ks.some((k) => { const v = o[k]; return Array.isArray(v) ? v.length : has(v) || (typeof v === "string" && v); });
   let i = 0;
-  if (any(p.bisque, ["l", "w", "h", "weight", "firingId"])) i = 1;
+  if (any(p.bisque, ["l", "w", "h", "weight", "firingId"]) || hasHandle(p.bisque)) i = 1;
   if (any(p.glaze, ["glazes", "method", "firingId"])) i = 2;
-  if (any(p.final, ["l", "w", "h", "weight", "outcome"])) i = 3;
+  if (any(p.final, ["l", "w", "h", "weight", "outcome"]) || hasHandle(p.final)) i = 3;
   for (const ph of p.photos || []) i = Math.max(i, STAGES.indexOf(ph.stage));
   return STAGES[i];
 }
@@ -58,8 +58,23 @@ function calc(p) {
     shrinkF: shrinkText(shrink(p.wet, p.final)),
     shrinkBavg: avgText(shrink(p.wet, p.bisque)),
     shrinkFavg: avgText(shrink(p.wet, p.final)),
+    shrinkHB: shrinkText(shrink(handleOf(p.wet), handleOf(p.bisque))),
+    shrinkHF: shrinkText(shrink(handleOf(p.wet), handleOf(p.final))),
     stage: t("stage." + stageOf(p))
   };
+}
+const handleOf = (o) => (o && o.handle) || null;
+const hasHandle = (o) => { const h = handleOf(o); return !!h && ["cut", "l", "w", "h"].some((k) => has(h[k])); };
+/** The optional handle block inside a stage: length as cut (wet only), then size once attached. */
+function handleBlock(stage, o, unit, withCut, c) {
+  const h = handleOf(o) || {};
+  const open = hasHandle(o) || OPEN.has(stage + "-handle");
+  return `<details class="sub" data-sec="${stage}-handle"${open ? " open" : ""}><summary>${t("f.handle")}</summary><div class="sub-body">
+    ${withCut ? field(`${t("f.handleCut")} (${esc(unit)})`, numIn(`${stage}.handle.cut`, h.cut)) : ""}
+    <span class="lbl">${t("f.handleDims")}</span>
+    ${dims(`${stage}.handle`, h, unit)}
+    ${stage === "wet" ? "" : `<div class="calc"><span>${t(stage === "bisque" ? "f.shrinkHandleB" : "f.shrinkHandleF")}</span><b data-calc="${stage === "bisque" ? "shrinkHB" : "shrinkHF"}">${stage === "bisque" ? c.shrinkHB : c.shrinkHF}</b></div>`}
+  </div></details>`;
 }
 function shrinkText(s) {
   if (!s) return "–";
@@ -235,6 +250,7 @@ VIEWS.piece = (r) => {
       ${dims("wet", p.wet, u)}
       <div class="grid2">${field(t("f.weight"), numIn("wet.weight", (p.wet || {}).weight))}${field(t("f.weightTrimmed"), numIn("wet.trimmed", (p.wet || {}).trimmed))}</div>
       <div class="calc"><span>${t("f.trimmedOff")}</span><b data-calc="trimmed">${c.trimmed}</b></div>
+      ${handleBlock("wet", p.wet, u, true, c)}
       ${field(t("f.dryDays"), numIn("wet.dryDays", (p.wet || {}).dryDays))}
       ${field(t("f.dryNotes"), area("wet.dryNotes", (p.wet || {}).dryNotes))}`)}
 
@@ -242,6 +258,7 @@ VIEWS.piece = (r) => {
       <span class="lbl">${t("f.dimsBisque")}</span>
       ${dims("bisque", p.bisque, u)}
       <div class="calc"><span>${t("f.shrinkBisque")}</span><b data-calc="shrinkB">${c.shrinkB}</b></div>
+      ${handleBlock("bisque", p.bisque, u, false, c)}
       ${field(t("f.weightBisque"), numIn("bisque.weight", (p.bisque || {}).weight))}
       ${field(t("f.firing"), firingSelect("bisque.firingId", (p.bisque || {}).firingId, "bisque"))}`,
       `<span data-calc="shrinkBavg">${c.shrinkBavg === "–" ? "" : c.shrinkBavg}</span>`)}
@@ -256,6 +273,7 @@ VIEWS.piece = (r) => {
       <span class="lbl">${t("f.dimsFinal")}</span>
       ${dims("final", p.final, u)}
       <div class="calc"><span>${t("f.shrinkFinal")}</span><b data-calc="shrinkF">${c.shrinkF}</b></div>
+      ${handleBlock("final", p.final, u, false, c)}
       ${field(t("f.weightFinal"), numIn("final.weight", fin.weight))}
       ${field(t("f.outcome"), chips("final.outcome", OUTCOMES, fin.outcome, (v) => t("outcome." + v), { single: true, cls: "oc" }))}
       ${fin.outcome && fin.outcome !== "success" ? field(t("f.defects"), chips("final.defects", DEFECTS, fin.defects, (v) => t("defect." + v))) : ""}
@@ -818,7 +836,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "3";
+const APP_VERSION = "4";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#lang").addEventListener("click", () => { SETTINGS.lang = LANG === "zh" ? "en" : "zh"; saveSettings(); setLang(SETTINGS.lang); render(true); if (SHEET) drawSheet(); });

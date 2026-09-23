@@ -38,6 +38,8 @@ const STRINGS = {
     "f.date": "Date", "f.firingType": "Firing type", "f.cone": "Cone / temperature", "f.kiln": "Kiln", "f.linked": "Pieces in this firing",
     "f.image": "Image", "f.description": "Description", "f.status": "Status", "f.sparkedBy": "Sparked by", "f.resultPiece": "Resulting piece",
     "f.source": "Source", "f.myNotes": "My notes", "f.usedBy": "Used by", "f.dateFrom": "From", "f.dateTo": "To",
+    "f.handle": "Handle (optional)", "f.handleCut": "Handle length when cut", "f.handleDims": "Handle once attached",
+    "f.shrinkHandleB": "Handle shrinkage wet → bisque", "f.shrinkHandleF": "Handle shrinkage wet → final",
     "f.addStage": "New photos go to", "avg": "avg", "addTag": "Add tag…", "addGlaze": "Add glaze…",
 
     "stage.wet": "Wet clay", "stage.bisque": "Bisque", "stage.glazed": "Glazed", "stage.final": "Final",
@@ -104,6 +106,8 @@ const STRINGS = {
     "f.date": "日期", "f.firingType": "烧制类型", "f.cone": "测温锥 / 温度", "f.kiln": "窑", "f.linked": "这一窑的作品",
     "f.image": "图片", "f.description": "描述", "f.status": "状态", "f.sparkedBy": "灵感来源", "f.resultPiece": "做成的作品",
     "f.source": "来源", "f.myNotes": "我的笔记", "f.usedBy": "被引用", "f.dateFrom": "从", "f.dateTo": "到",
+    "f.handle": "把手（可选）", "f.handleCut": "把手裁切时的长度", "f.handleDims": "装好后的把手",
+    "f.shrinkHandleB": "把手收缩率 湿坯 → 素烧", "f.shrinkHandleF": "把手收缩率 湿坯 → 成品",
     "f.addStage": "新照片归入", "avg": "平均", "addTag": "添加标签…", "addGlaze": "添加釉料…",
 
     "stage.wet": "湿坯", "stage.bisque": "素烧", "stage.glazed": "已上釉", "stage.final": "成品",
