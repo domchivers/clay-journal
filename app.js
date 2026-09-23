@@ -144,7 +144,7 @@ function empty(text) { return `<p class="empty">${esc(text)}</p>`; }
 const ICON = {
   pieces: '<svg viewBox="0 0 24 24"><path d="M9 3h6M9.5 3l-.4 2.6a4 4 0 0 1-.9 2L7 9.4A6.5 6.5 0 0 0 5.6 13v4.5A3.5 3.5 0 0 0 9.1 21h5.8a3.5 3.5 0 0 0 3.5-3.5V13a6.5 6.5 0 0 0-1.4-3.6l-1.2-1.8a4 4 0 0 1-.9-2L14.5 3"/></svg>',
   gallery: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5l4.7-4.2a2 2 0 0 1 2.7 0l3.3 3M14 15.2l1.9-1.6a2 2 0 0 1 2.6 0l2 1.7"/></svg>',
-  firings: '<svg viewBox="0 0 24 24"><path d="M12.6 2.4c.3 2.6 1.7 3.7 3 5.2a7 7 0 0 1 1.8 4.7 5.4 5.4 0 0 1-10.8 0c0-1.7.7-3 1.7-4 .2 1.2.8 1.9 1.6 2.1-.6-3 .5-5.8 2.7-8z"/><path d="M12 21a2.7 2.7 0 0 1-2.7-2.7c0-1.6 1.5-2.3 2.7-4.1 1.2 1.8 2.7 2.5 2.7 4.1A2.7 2.7 0 0 1 12 21z"/></svg>',
+  firings: '<svg viewBox="0 0 24 24"><path d="M12 2.5c3.6 3.4 6.5 6.1 6.5 10.2a6.5 6.5 0 0 1-13 0c0-2.2 1-4 2.6-5.6-.2 1.8.4 3 1.6 3.4.7-3 .8-5.3 2.3-8z"/></svg>',
   more: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
   settings: '<svg viewBox="0 0 24 24"><path d="M4 7.5h4.5M13.5 7.5H20M4 16.5h6.5M15.5 16.5H20"/><circle cx="11" cy="7.5" r="2.4"/><circle cx="13" cy="16.5" r="2.4"/></svg>',
   ideas: '<svg viewBox="0 0 24 24"><path d="M9.5 18h5M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2h5c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></svg>',
@@ -921,7 +921,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "13";
+const APP_VERSION = "14";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
