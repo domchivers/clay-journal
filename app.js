@@ -155,7 +155,8 @@ const ICON = {
   x: '<svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
   search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.6"/><path d="M19.5 19.5l-3.8-3.8"/></svg>',
   chevron: '<svg viewBox="0 0 24 24"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>',
-  filter: '<svg viewBox="0 0 24 24"><path d="M4.5 6.5h15M7 12h10M10 17.5h4"/></svg>'
+  filter: '<svg viewBox="0 0 24 24"><path d="M4.5 6.5h15M7 12h10M10 17.5h4"/></svg>',
+  swap: '<svg viewBox="0 0 24 24"><path d="M6 8.5h12l-3-3M18 15.5H6l3 3"/></svg>'
 };
 
 // ---------- routing
@@ -455,9 +456,7 @@ VIEWS.settings = () => {
   const listEd = (name, lab, labFn) => `<div class="fgroup"><span class="lbl">${lab}</span><div class="chips">${listValues(name).map((v) => `<span class="chip listed">${esc(labFn(v))}<button data-act="list-remove" data-list="${name}" data-val="${esc(v)}" aria-label="${t("btn.delete")}">×</button></span>`).join("")}<button class="chip add" data-act="list-add" data-list="${name}">+</button></div></div>`;
   return `<div class="pad settings">
     <h3>${t("set.language")}</h3>
-    <div class="panel"><div class="seg">${[["en", "English"], ["zh", "中文"]].map(([k, n]) => `<button data-act="lang" data-val="${k}" aria-pressed="${LANG === k}">${n}</button>`).join("")}</div>
-
-</div>
+    <div class="chips"><button class="chip" data-act="lang" data-val="${LANG === "zh" ? "en" : "zh"}">${LANG === "zh" ? "中文" : "English"} ${ICON.swap}</button></div>
     <h3>${t("set.account")}</h3>
     <div class="panel">${!window.cloud ? "<p class='meta'>Supabase isn't configured.</p>" : u ? `
       <p>${esc(t("set.signedInAs", { email: u.email }))}</p>
@@ -922,7 +921,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "12";
+const APP_VERSION = "13";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
