@@ -32,13 +32,25 @@ function emptyDB() {
   for (const c of COLLECTIONS) out[c] = {};
   return out;
 }
+/* Older pieces kept the trimmed weight at wet.trimmed and their sizes at wet.l/w/h.
+ * Carry the weight over to the trim stage it now belongs to, leaving the original in
+ * place, so nothing typed before the change is lost (sizes still read through mget). */
+function migrate(db) {
+  const set = (v) => v !== null && v !== undefined && v !== "";
+  for (const p of Object.values(db.pieces || {})) {
+    if (p.wet && set(p.wet.trimmed) && !(p.trim && set(p.trim.weight))) {
+      p.trim = Object.assign({}, p.trim, { weight: p.wet.trimmed });
+    }
+  }
+  return db;
+}
 function normalise(d) {
   const e = emptyDB();
   if (!d || typeof d !== "object") return e;
   for (const c of COLLECTIONS) e[c] = (d[c] && typeof d[c] === "object") ? d[c] : {};
   if (d.lists) for (const l of LISTS) if (d.lists[l]) e.lists[l] = d.lists[l];
   e.deleted = d.deleted || {};
-  return e;
+  return migrate(e);
 }
 
 let DB = (() => { try { return normalise(JSON.parse(localStorage.getItem(LS_DB))); } catch (e) { return emptyDB(); } })();

@@ -76,7 +76,7 @@ function calc(p) {
   const cost = pieceCost(p);
   return {
     total: total ? `${fmt(total, 0)} g` : "–",
-    trimmed: has(w.weight) && has((p.trim || {}).weight) ? `${fmt(w.weight - p.trim.weight, 0)} g (${fmt((w.weight - p.trim.weight) / w.weight * 100)}%)` : "–",
+    trimmed: has(w.weight) && has(trimWeight(p)) ? `${fmt(w.weight - trimWeight(p), 0)} g (${fmt((w.weight - trimWeight(p)) / w.weight * 100)}%)` : "–",
     shrinkB: shrinkText(shrink(from, p.bisque, keys)),
     shrinkF: shrinkText(shrink(from, p.final, keys)),
     shrinkBavg: avgText(shrink(from, p.bisque, keys)),
@@ -130,6 +130,8 @@ function pieceCost(p) {
   out.total = out.clay + out.glaze + out.firing + out.travel + out.other;
   return out;
 }
+/** The weight after trimming, wherever it was recorded: the trim stage, or an older piece's wet stage. */
+const trimWeight = (p) => has((p.trim || {}).weight) ? p.trim.weight : (p.wet || {}).trimmed;
 const salePrice = (p) => { const s = p.sale || {}; return has(s.price) ? Number(s.price) : has(s.ask) ? Number(s.ask) : 0; };
 const handleOf = (o) => (o && o.handle) || null;
 const hasHandle = (o) => { const h = handleOf(o); return !!h && ["cut", "l", "w", "h"].some((k) => has(mget(h, k))); };
@@ -332,8 +334,8 @@ const TAB_BODY = {
       ${field(t("f.weightThrown"), numIn("wet.weight", w.weight))}
       <span class="lbl">${t("f.dimsTrimmed")}</span>
       ${dims("trim", tr, u, keys)}
-      ${field(t("f.weightTrimmed"), numIn("trim.weight", tr.weight))}
-      ${has(w.weight) && has(tr.weight) ? `<div class="calc"><span>${t("f.trimmedOff")}</span><b data-calc="trimmed">${c.trimmed}</b></div>` : ""}
+      ${field(t("f.weightTrimmed"), numIn("trim.weight", has(tr.weight) ? tr.weight : (w.trimmed)))}
+      ${has(w.weight) && has(trimWeight(p)) ? `<div class="calc"><span>${t("f.trimmedOff")}</span><b data-calc="trimmed">${c.trimmed}</b></div>` : ""}
       ${handleBlock("wet", w, u, true, c)}
       <span class="lbl">${t("sec.clay")}</span>
       ${clayRows}
@@ -1085,7 +1087,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "15";
+const APP_VERSION = "16";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
