@@ -170,8 +170,8 @@ function parseRoute() {
 const go = (h) => { location.hash = h; };
 window.addEventListener("hashchange", () => { ROUTE = parseRoute(); closeSheet(); render(); window.scrollTo(0, 0); });
 
-const TABS = ["pieces", "gallery", "firings", "more"];
-const TAB_OF = { piece: "pieces", firing: "firings", design: "more", insp: "more", ideas: "more", settings: "more" };
+const TABS = ["pieces", "gallery", "firings", "ideas", "more"];
+const TAB_OF = { piece: "pieces", firing: "firings", design: "ideas", insp: "ideas", settings: "more" };
 
 // ---------- views
 const VIEWS = {};
@@ -383,7 +383,7 @@ VIEWS.firing = (r) => {
 function designName(d) { return (d.description || "").split("\n")[0].slice(0, 40) || `${t("ideas.designs")} · ${dateText(new Date(d.createdAt).toISOString().slice(0, 10))}`; }
 VIEWS.ideas = () => {
   const tab = SETTINGS.ideasTab;
-  const seg = `<div class="seg">${["designs", "insp"].map((x) => `<button data-act="ideas-tab" data-val="${x}" aria-pressed="${tab === x}">${t("ideas." + x)}</button>`).join("")}</div>`;
+  const seg = `<div class="toolbar"><div class="wordtabs">${["designs", "insp"].map((x) => `<button data-act="ideas-tab" data-val="${x}" aria-pressed="${tab === x}">${t("ideas." + x)}</button>`).join("")}</div></div>`;
   if (tab === "designs") {
     const ds = Object.values(DB.designs).sort((a, b) => b.createdAt - a.createdAt);
     return `${seg}<div class="tiles">${ds.map((d) => `<a class="tile" href="#/design/${esc(d.id)}">${d.image ? img(d.image) : `<div class="tile-text">${esc(d.description || "")}</div>`}<span class="pill ds-${d.status || "concept"}">${t("dstatus." + (d.status || "concept"))}</span></a>`).join("")}</div>
@@ -443,9 +443,8 @@ VIEWS.more = () => {
   const sold = Object.values(DB.pieces).filter((p) => p.sale && p.sale.status === "sold");
   const takings = sold.reduce((a, p) => a + (has(p.sale.price) ? Number(p.sale.price) : has(p.sale.ask) ? Number(p.sale.ask) : 0), 0);
   return `<div class="rows">
-      <a class="srow" href="#/ideas" data-act="ideas-open" data-val="designs">${t("ideas.designs")}<span class="v">${nd} ${ICON.chevron}</span></a>
-      <a class="srow" href="#/ideas" data-act="ideas-open" data-val="insp">${t("ideas.insp")}<span class="v">${ni} ${ICON.chevron}</span></a>
-      <div class="srow">${t("sec.sales")}<span class="v">${sold.length ? esc(money(takings)) : "–"}</span></div>
+      <div class="srow">${t("sec.sales")}<span class="v">${sold.length ? `${t("pieces.count", { n: sold.length })} · ${esc(money(takings))}` : "–"}</span></div>
+      <div class="srow">${t("ideas.designs")} · ${t("ideas.insp")}<span class="v">${nd} · ${ni}</span></div>
     </div>` + VIEWS.settings();
 };
 
@@ -869,7 +868,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "8";
+const APP_VERSION = "9";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#lang").addEventListener("click", () => { SETTINGS.lang = LANG === "zh" ? "en" : "zh"; saveSettings(); setLang(SETTINGS.lang); render(true); if (SHEET) drawSheet(); });

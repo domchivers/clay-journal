@@ -7,7 +7,7 @@
 const STRINGS = {
   en: {
     app: "Clay Journal",
-    "tab.design": "Design", "tab.more": "More", "tab.pieces": "Pieces", "tab.gallery": "Gallery", "tab.firings": "Firings", "tab.ideas": "Ideas", "tab.settings": "Settings",
+    "tab.design": "Design", "tab.more": "More", "tab.pieces": "Pieces", "tab.gallery": "Gallery", "tab.firings": "Firings", "tab.ideas": "Design", "tab.settings": "Settings",
     "btn.newPiece": "New piece", "btn.newFiring": "New firing", "btn.newDesign": "New design", "btn.newInsp": "New inspiration",
     "btn.addPhoto": "Add photo", "btn.takePhoto": "Take photo", "btn.addRow": "Add clay", "btn.delete": "Delete", "btn.done": "Done",
     "btn.cancel": "Cancel", "btn.save": "Save", "btn.back": "Back", "btn.add": "Add", "btn.clear": "Clear filters",
@@ -75,7 +75,7 @@ const STRINGS = {
   },
   zh: {
     app: "陶记",
-    "tab.design": "设计", "tab.more": "更多", "tab.pieces": "作品", "tab.gallery": "图库", "tab.firings": "烧制", "tab.ideas": "灵感", "tab.settings": "设置",
+    "tab.design": "设计", "tab.more": "更多", "tab.pieces": "作品", "tab.gallery": "图库", "tab.firings": "烧制", "tab.ideas": "设计", "tab.settings": "设置",
     "btn.newPiece": "新作品", "btn.newFiring": "新烧制", "btn.newDesign": "新设计", "btn.newInsp": "新灵感",
     "btn.addPhoto": "添加照片", "btn.takePhoto": "拍照", "btn.addRow": "添加泥料", "btn.delete": "删除", "btn.done": "完成",
     "btn.cancel": "取消", "btn.save": "保存", "btn.back": "返回", "btn.add": "添加", "btn.clear": "清除筛选",
