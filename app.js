@@ -422,7 +422,7 @@ VIEWS.insp = (r) => {
 VIEWS.settings = () => {
   const u = window.cloud && cloud.user;
   const pend = Photos.pending().length;
-  const listEd = (name, lab, labFn) => `<div class="fgroup"><span class="lbl">${lab}</span><div class="chips">${listValues(name).map((v) => `<span class="chip on">${esc(labFn(v))}<button data-act="list-remove" data-list="${name}" data-val="${esc(v)}" aria-label="${t("btn.delete")}">×</button></span>`).join("")}<button class="chip add" data-act="list-add" data-list="${name}">+</button></div></div>`;
+  const listEd = (name, lab, labFn) => `<div class="fgroup"><span class="lbl">${lab}</span><div class="chips">${listValues(name).map((v) => `<span class="chip listed">${esc(labFn(v))}<button data-act="list-remove" data-list="${name}" data-val="${esc(v)}" aria-label="${t("btn.delete")}">×</button></span>`).join("")}<button class="chip add" data-act="list-add" data-list="${name}">+</button></div></div>`;
   return `<div class="pad settings">
     <h3>${t("set.language")}</h3>
     <div class="seg">${[["en", "English"], ["zh", "中文"]].map(([k, n]) => `<button data-act="lang" data-val="${k}" aria-pressed="${LANG === k}">${n}</button>`).join("")}</div>
@@ -836,7 +836,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "4";
+const APP_VERSION = "5";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#lang").addEventListener("click", () => { SETTINGS.lang = LANG === "zh" ? "en" : "zh"; saveSettings(); setLang(SETTINGS.lang); render(true); if (SHEET) drawSheet(); });
