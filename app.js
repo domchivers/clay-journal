@@ -425,10 +425,11 @@ VIEWS.settings = () => {
   const listEd = (name, lab, labFn) => `<div class="fgroup"><span class="lbl">${lab}</span><div class="chips">${listValues(name).map((v) => `<span class="chip listed">${esc(labFn(v))}<button data-act="list-remove" data-list="${name}" data-val="${esc(v)}" aria-label="${t("btn.delete")}">×</button></span>`).join("")}<button class="chip add" data-act="list-add" data-list="${name}">+</button></div></div>`;
   return `<div class="pad settings">
     <h3>${t("set.language")}</h3>
-    <div class="seg">${[["en", "English"], ["zh", "中文"]].map(([k, n]) => `<button data-act="lang" data-val="${k}" aria-pressed="${LANG === k}">${n}</button>`).join("")}</div>
+    <div class="panel"><div class="seg">${[["en", "English"], ["zh", "中文"]].map(([k, n]) => `<button data-act="lang" data-val="${k}" aria-pressed="${LANG === k}">${n}</button>`).join("")}</div>
 
+</div>
     <h3>${t("set.account")}</h3>
-    ${!window.cloud ? "<p class='meta'>Supabase isn't configured.</p>" : u ? `
+    <div class="panel">${!window.cloud ? "<p class='meta'>Supabase isn't configured.</p>" : u ? `
       <p>${esc(t("set.signedInAs", { email: u.email }))}</p>
       <p class="meta" id="sync-line">${syncLine()}</p>
       ${pend ? `<p class="meta">${t("set.pending", { n: pend })}</p>` : ""}
@@ -440,11 +441,11 @@ VIEWS.settings = () => {
         <div class="row"><button class="btn primary" data-act="sign-in">${t("set.signIn")}</button><button class="btn" data-act="sign-up">${t("set.signUp")}</button></div>
         <button class="linkish" data-act="forgot">${t("set.forgot")}</button>
       </form>
-      ${pend ? `<p class="meta">${t("sync.needSignIn")}</p>` : ""}`}
+      ${pend ? `<p class="meta">${t("sync.needSignIn")}</p>` : ""}`}</div>
 
     <h3>${t("set.currency")} · ${t("set.unit")}</h3>
-    <div class="grid2"><input type="text" data-setting="currency" value="${esc(SETTINGS.currency)}" maxlength="4">
-      <select data-setting="unit">${UNITS.map((x) => `<option${x === SETTINGS.unit ? " selected" : ""}>${x}</option>`).join("")}</select></div>
+    <div class="panel"><div class="grid2"><input type="text" data-setting="currency" value="${esc(SETTINGS.currency)}" maxlength="4">
+      <select data-setting="unit">${UNITS.map((x) => `<option${x === SETTINGS.unit ? " selected" : ""}>${x}</option>`).join("")}</select></div></div>
 
     <h3>${t("set.lists")}</h3>
     ${listEd("tags", t("set.listTags"), (v) => label("tag", v))}
@@ -453,12 +454,12 @@ VIEWS.settings = () => {
     ${listEd("channels", t("set.listChannels"), (v) => label("chan", v))}
 
     <h3>${t("set.backup")}</h3>
-    <p class="meta">${t("set.stats", { p: Object.keys(DB.pieces).length, f: Object.keys(DB.firings).length, d: Object.keys(DB.designs).length, i: Object.keys(DB.insps).length })}</p>
+    <div class="panel"><p class="meta">${t("set.stats", { p: Object.keys(DB.pieces).length, f: Object.keys(DB.firings).length, d: Object.keys(DB.designs).length, i: Object.keys(DB.insps).length })}</p>
     <div class="row"><button class="btn" data-act="export">${t("set.export")}</button>
-      <label class="btn">${t("set.import")}<input type="file" accept="application/json,.json" hidden data-import></label></div>
+      <label class="btn">${t("set.import")}<input type="file" accept="application/json,.json" hidden data-import></label></div></div>
     <h3>${t("set.update")}</h3>
-    <p class="meta">${t("set.updateHint")}</p>
-    <button class="btn" data-act="force-update">${t("set.forceUpdate")}</button>
+    <div class="panel"><p class="meta">${t("set.updateHint")}</p>
+    <button class="btn" data-act="force-update">${t("set.forceUpdate")}</button></div>
     <p class="meta ver">v${APP_VERSION}</p>
   </div>`;
 };
@@ -836,7 +837,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "6";
+const APP_VERSION = "7";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#lang").addEventListener("click", () => { SETTINGS.lang = LANG === "zh" ? "en" : "zh"; saveSettings(); setLang(SETTINGS.lang); render(true); if (SHEET) drawSheet(); });

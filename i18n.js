@@ -27,7 +27,7 @@ const STRINGS = {
 
     "f.title": "Title", "f.started": "Date started", "f.technique": "Technique", "f.tags": "Category tags", "f.notes": "Notes",
     "f.clayType": "Clay type", "f.grams": "Grams", "f.totalClay": "Total clay", "f.dims": "Dimensions", "f.unit": "Unit",
-    "f.length": "L", "f.width": "W", "f.height": "H", "f.weight": "Weight (g)", "f.weightTrimmed": "Weight after trimming (g)",
+    "f.length": "L", "f.width": "W", "f.height": "H", "f.weight": "Weight (g)", "f.weightTrimmed": "Weight after trim (g)",
     "f.trimmedOff": "Trimmed off", "f.dryDays": "Drying time (days)", "f.dryNotes": "Drying notes",
     "f.dimsBisque": "Dimensions after bisque", "f.weightBisque": "Weight after bisque (g)", "f.shrinkBisque": "Shrinkage wet → bisque",
     "f.firing": "Firing", "f.glazes": "Glazes", "f.method": "Application", "f.dimsFinal": "Final dimensions",
@@ -95,7 +95,7 @@ const STRINGS = {
 
     "f.title": "名称", "f.started": "开始日期", "f.technique": "成型方式", "f.tags": "分类标签", "f.notes": "备注",
     "f.clayType": "泥料", "f.grams": "克数", "f.totalClay": "泥料总重", "f.dims": "尺寸", "f.unit": "单位",
-    "f.length": "长", "f.width": "宽", "f.height": "高", "f.weight": "重量（克）", "f.weightTrimmed": "修坯后重量（克）",
+    "f.length": "长", "f.width": "宽", "f.height": "高", "f.weight": "重量（克）", "f.weightTrimmed": "修坯后重量 (克)",
     "f.trimmedOff": "修掉", "f.dryDays": "干燥时间（天）", "f.dryNotes": "干燥备注",
     "f.dimsBisque": "素烧后尺寸", "f.weightBisque": "素烧后重量（克）", "f.shrinkBisque": "收缩率 湿坯 → 素烧",
     "f.firing": "烧制", "f.glazes": "釉料", "f.method": "施釉方式", "f.dimsFinal": "成品尺寸",
