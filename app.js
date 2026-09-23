@@ -144,7 +144,7 @@ function empty(text) { return `<p class="empty">${esc(text)}</p>`; }
 const ICON = {
   pieces: '<svg viewBox="0 0 24 24"><path d="M9 3h6M9.5 3l-.4 2.6a4 4 0 0 1-.9 2L7 9.4A6.5 6.5 0 0 0 5.6 13v4.5A3.5 3.5 0 0 0 9.1 21h5.8a3.5 3.5 0 0 0 3.5-3.5V13a6.5 6.5 0 0 0-1.4-3.6l-1.2-1.8a4 4 0 0 1-.9-2L14.5 3"/></svg>',
   gallery: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5l4.7-4.2a2 2 0 0 1 2.7 0l3.3 3M14 15.2l1.9-1.6a2 2 0 0 1 2.6 0l2 1.7"/></svg>',
-  firings: '<svg viewBox="0 0 24 24"><path d="M12 2.8c.4 3.1 2.2 4 3.5 5.6a6.5 6.5 0 0 1 1.6 4.3 5.1 5.1 0 0 1-10.2 0c0-1.5.6-2.8 1.6-3.8.2 1.4.9 2.2 1.8 2.4-.4-3 .3-5.6 1.7-8.5z"/><path d="M12 20.6a2.4 2.4 0 0 1-2.4-2.4c0-1.4 1.3-2 2.4-3.6 1.1 1.6 2.4 2.2 2.4 3.6a2.4 2.4 0 0 1-2.4 2.4z"/></svg>',
+  firings: '<svg viewBox="0 0 24 24"><path d="M4.5 9.5a7.5 7.5 0 0 1 15 0v9.2a1.3 1.3 0 0 1-1.3 1.3H5.8a1.3 1.3 0 0 1-1.3-1.3z"/><path d="M4.7 8h14.6M9 20v-4.2a3 3 0 0 1 6 0V20"/><path d="M12 4.6c.2 1.3 1.2 1.7 1.2 2.8a1.2 1.2 0 0 1-2.4 0c0-.6.3-1 .6-1.3"/></svg>',
   more: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
   settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.4l1.3 2.2 2.5-.4.5 2.5 2.2 1.3-1.4 2.1 1.4 2.1-2.2 1.3-.5 2.5-2.5-.4L12 20.6l-1.3-2.2-2.5.4-.5-2.5L5.5 15l1.4-2.1L5.5 10.8 7.7 9.5l.5-2.5 2.5.4z"/></svg>',
   ideas: '<svg viewBox="0 0 24 24"><path d="M9.5 18h5M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2h5c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></svg>',
@@ -516,7 +516,7 @@ function render(keepScroll) {
   $("#gear").innerHTML = ICON.settings;
   $("#gear").setAttribute("aria-pressed", ROUTE.name === "more" || ROUTE.name === "settings");
   document.title = t("app");
-  $$("#tabs a").forEach((a) => { a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"); a.querySelector("span").textContent = t("tab." + a.dataset.tab); });
+  $$("#tabs a").forEach((a) => { a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"); a.setAttribute("aria-label", t("tab." + a.dataset.tab)); });
   paintSync();
   hydrate($("#main"));
   if (keepScroll) window.scrollTo(0, y);
@@ -871,12 +871,12 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "10";
+const APP_VERSION = "11";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
 $("#lang").addEventListener("click", () => { SETTINGS.lang = LANG === "zh" ? "en" : "zh"; saveSettings(); setLang(SETTINGS.lang); render(true); if (SHEET) drawSheet(); });
-$("#tabs").innerHTML = TABS.map((k) => `<a href="#/${k}" data-tab="${k}">${ICON[k]}<span></span></a>`).join("");
+$("#tabs").innerHTML = TABS.map((k) => `<a href="#/${k}" data-tab="${k}">${ICON[k]}</a>`).join("");
 Sync.onChange(paintSync);
 if (window.cloud) cloud.onAuth(() => paintSync());
 ROUTE = parseRoute();
