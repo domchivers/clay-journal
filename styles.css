@@ -38,6 +38,8 @@ a { color: inherit; text-decoration: none; }
 }
 .top h1 { flex: 1; margin: 0; font: 550 19px/1.25 var(--sans); letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #back { margin-left: -10px; }
+#gear { margin-right: -8px; }
+#gear[aria-pressed="true"] { color: var(--accent); }
 .lang { border: 0; background: none; color: var(--muted); min-width: 32px; height: 32px; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
 .sync { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
 .sync.ok { background: var(--ok); } .sync.syncing { background: var(--warn); animation: pulse 1s infinite alternate; }

@@ -146,7 +146,7 @@ const ICON = {
   gallery: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5l4.7-4.2a2 2 0 0 1 2.7 0l3.3 3M14 15.2l1.9-1.6a2 2 0 0 1 2.6 0l2 1.7"/></svg>',
   firings: '<svg viewBox="0 0 24 24"><path d="M12 2.8c.4 3.1 2.2 4 3.5 5.6a6.5 6.5 0 0 1 1.6 4.3 5.1 5.1 0 0 1-10.2 0c0-1.5.6-2.8 1.6-3.8.2 1.4.9 2.2 1.8 2.4-.4-3 .3-5.6 1.7-8.5z"/><path d="M12 20.6a2.4 2.4 0 0 1-2.4-2.4c0-1.4 1.3-2 2.4-3.6 1.1 1.6 2.4 2.2 2.4 3.6a2.4 2.4 0 0 1-2.4 2.4z"/></svg>',
   more: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
-  settings: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
+  settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.4l1.3 2.2 2.5-.4.5 2.5 2.2 1.3-1.4 2.1 1.4 2.1-2.2 1.3-.5 2.5-2.5-.4L12 20.6l-1.3-2.2-2.5.4-.5-2.5L5.5 15l1.4-2.1L5.5 10.8 7.7 9.5l.5-2.5 2.5.4z"/></svg>',
   ideas: '<svg viewBox="0 0 24 24"><path d="M9.5 18h5M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2h5c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></svg>',
   camera: '<svg viewBox="0 0 24 24"><path d="M3.5 8.5h3.2l1.6-2.6h7.4l1.6 2.6h3.2v10.6H3.5z"/><circle cx="12" cy="13.6" r="3.4"/></svg>',
   image: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5l4.7-4.2a2 2 0 0 1 2.7 0l3.3 3M14 15.2l1.9-1.6a2 2 0 0 1 2.6 0l2 1.7"/></svg>',
@@ -170,8 +170,8 @@ function parseRoute() {
 const go = (h) => { location.hash = h; };
 window.addEventListener("hashchange", () => { ROUTE = parseRoute(); closeSheet(); render(); window.scrollTo(0, 0); });
 
-const TABS = ["pieces", "gallery", "firings", "ideas", "more"];
-const TAB_OF = { piece: "pieces", firing: "firings", design: "ideas", insp: "ideas", settings: "more" };
+const TABS = ["pieces", "gallery", "firings", "ideas"];
+const TAB_OF = { piece: "pieces", firing: "firings", design: "ideas", insp: "ideas", settings: "more", more: "pieces" };
 
 // ---------- views
 const VIEWS = {};
@@ -439,12 +439,12 @@ VIEWS.insp = (r) => {
 };
 
 VIEWS.more = () => {
-  const nd = Object.keys(DB.designs).length, ni = Object.keys(DB.insps).length;
   const sold = Object.values(DB.pieces).filter((p) => p.sale && p.sale.status === "sold");
-  const takings = sold.reduce((a, p) => a + (has(p.sale.price) ? Number(p.sale.price) : has(p.sale.ask) ? Number(p.sale.ask) : 0), 0);
+  const forSale = Object.values(DB.pieces).filter((p) => p.sale && p.sale.status === "for");
+  const total = (list, keys) => list.reduce((a, p) => { const k = keys.find((x) => has(p.sale[x])); return a + (k ? Number(p.sale[k]) : 0); }, 0);
   return `<div class="rows">
-      <div class="srow">${t("sec.sales")}<span class="v">${sold.length ? `${t("pieces.count", { n: sold.length })} · ${esc(money(takings))}` : "–"}</span></div>
-      <div class="srow">${t("ideas.designs")} · ${t("ideas.insp")}<span class="v">${nd} · ${ni}</span></div>
+      <div class="srow">${t("sale.sold")}<span class="v">${sold.length ? `${t("pieces.count", { n: sold.length })} · ${esc(money(total(sold, ["price", "ask"])))}` : "–"}</span></div>
+      <div class="srow">${t("sale.for")}<span class="v">${forSale.length ? `${t("pieces.count", { n: forSale.length })} · ${esc(money(total(forSale, ["ask"])))}` : "–"}</span></div>
     </div>` + VIEWS.settings();
 };
 
@@ -513,6 +513,8 @@ function render(keepScroll) {
   $("#back").hidden = !detail;
   $("#title").textContent = detail ? detailTitle() : t("tab." + tab);
   $("#lang").textContent = LANG === "zh" ? "EN" : "中";
+  $("#gear").innerHTML = ICON.settings;
+  $("#gear").setAttribute("aria-pressed", ROUTE.name === "more" || ROUTE.name === "settings");
   document.title = t("app");
   $$("#tabs a").forEach((a) => { a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"); a.querySelector("span").textContent = t("tab." + a.dataset.tab); });
   paintSync();
@@ -525,6 +527,7 @@ function detailTitle() {
   if (r.name === "firing") return label("ftype", DB.firings[r.id].type);
   if (r.name === "design") return t("ideas.designs");
   if (r.name === "insp") return t("ideas.insp");
+  if (r.name === "more" || r.name === "settings") return t("tab.settings");
   return "";
 }
 function hydrate(root) {
@@ -868,9 +871,10 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "9";
+const APP_VERSION = "10";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
+$("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
 $("#lang").addEventListener("click", () => { SETTINGS.lang = LANG === "zh" ? "en" : "zh"; saveSettings(); setLang(SETTINGS.lang); render(true); if (SHEET) drawSheet(); });
 $("#tabs").innerHTML = TABS.map((k) => `<a href="#/${k}" data-tab="${k}">${ICON[k]}<span></span></a>`).join("");
 Sync.onChange(paintSync);
