@@ -660,6 +660,12 @@ VIEWS.settings = () => {
     ${listEd("glazes", t("set.listGlazes"), (v) => v)}
     ${listEd("channels", t("set.listChannels"), (v) => label("chan", v))}
 
+    <h3>${t("set.backups")}</h3>
+    <div class="panel">
+      <p class="meta">${t("set.backupsHint")}</p>
+      <div id="backup-list" class="rows"><div class="srow meta">${t("set.loading")}</div></div>
+    </div>
+
     <h3>${t("set.backup")}</h3>
     <div class="panel"><p class="meta">${t("set.stats", { p: Object.keys(DB.pieces).length, f: Object.keys(DB.firings).length, d: Object.keys(DB.designs).length, i: Object.keys(DB.insps).length })}</p>
     <div class="row"><button class="btn" data-act="export">${t("set.export")}</button>
@@ -670,6 +676,33 @@ VIEWS.settings = () => {
     <p class="meta ver">v${APP_VERSION}</p>
   </div>`;
 };
+/** Fills in the backup list once the phone and the cloud have answered. */
+async function paintBackups() {
+  const box = $("#backup-list");
+  if (!box) return;
+  const rows = [];
+  for (const key of await Backups.all()) {
+    const snap = await Backups.read(key);
+    if (snap) rows.push({ where: "phone", key, at: snap.at, n: Backups.count(snap.data), data: snap.data });
+  }
+  let cloudRows = [];
+  if (window.cloud && cloud.user) {
+    try {
+      const list = await cloud.snapshots();
+      if (list === null) rows.push({ note: t("set.backupsSql") });
+      else cloudRows = list.map((r) => ({ where: "cloud", key: r.id, at: new Date(r.created_at).getTime(), n: Backups.count(r.data), data: r.data }));
+    } catch (e) { rows.push({ note: cloud.explain(e) }); }
+  }
+  const items = [...rows.filter((r) => !r.note), ...cloudRows].sort((a, b) => b.at - a.at);
+  BACKUPS = items;
+  const notes = rows.filter((r) => r.note).map((r) => `<div class="srow meta">${esc(r.note)}</div>`).join("");
+  box.innerHTML = (items.map((r, i) => `<div class="srow">
+      <span>${esc(dateText(new Date(r.at).toISOString().slice(0, 10), true))} <i class="meta">${r.where === "cloud" ? t("set.inCloud") : t("set.onPhone")}</i></span>
+      <span class="v">${t("set.backupItems", { n: r.n })} <button class="btn small" data-act="restore" data-i="${i}">${t("set.restore")}</button></span>
+    </div>`).join("") || `<div class="srow meta">${t("set.noBackups")}</div>`) + notes;
+}
+let BACKUPS = [];
+
 function syncLine() {
   const s = Sync.state;
   if (s.status === "syncing") return t("sync.syncing");
@@ -696,6 +729,7 @@ function render(keepScroll) {
   document.title = t("app");
   $$("#tabs a").forEach((a) => { a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"); a.setAttribute("aria-label", t("tab." + a.dataset.tab)); });
   paintSync();
+  if (ROUTE.name === "more" || ROUTE.name === "settings") paintBackups();
   hydrate($("#main"));
   if (keepScroll) window.scrollTo(0, y);
 }
@@ -956,6 +990,13 @@ document.addEventListener("click", async (e) => {
     case "sign-in": case "sign-up": case "forgot": return onAuth(e, act);
     case "sign-out": await cloud.signOut(); Sync.reset(); render(true); return;
     case "export": return onExport();
+    case "restore": {
+      const b = BACKUPS[Number(el.dataset.i)];
+      if (!b || !confirm(t("set.restoreAsk", { when: dateText(new Date(b.at).toISOString().slice(0, 10), true) }))) return;
+      const n = Backups.restore(b.data);
+      render(true); toast(t("set.restored", { n }));
+      return;
+    }
     case "force-update": return forceUpdate(el);
   }
 });
@@ -1161,7 +1202,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "20";
+const APP_VERSION = "21";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
@@ -1171,6 +1212,7 @@ Sync.onChange(paintSync);
 if (window.cloud) cloud.onAuth(() => paintSync());
 ROUTE = parseRoute();
 render();
+Backups.rescue().then((saved) => { if (saved) { render(true); toast(t("set.rescued")); } });
 if (/[?&]u=/.test(location.search)) {   // just back from Force update: tidy the address and say so
   history.replaceState(null, "", location.pathname + location.hash);
   toast(`${t("set.updated")} · v${APP_VERSION}`);

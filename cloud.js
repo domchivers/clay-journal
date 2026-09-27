@@ -87,6 +87,17 @@
       });
       if (!r.ok) throw await fail(r, `Couldn't save to the cloud (${r.status})`);
     },
+    /** The daily copies the database keeps, newest first. null when the table isn't there yet. */
+    async snapshots() {
+      const r = await sbAuthed(`/rest/v1/pottery_backups?user_id=eq.${session.user.id}&select=id,created_at,data&order=created_at.desc&limit=30`);
+      if (r.status === 404) return null;
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        if (/relation|schema cache/i.test(j.message || "")) return null;
+        throw await fail(r, `Couldn't read the backups (${r.status})`);
+      }
+      return r.json();
+    },
     /** Upload one JPEG blob; resolves to its public URL. */
     async upload(blob, name) {
       const path = `${session.user.id}/pottery/${name}.jpg`;

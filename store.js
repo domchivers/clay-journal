@@ -71,7 +71,7 @@ function persist() {
   catch (e) { toast(LANG === "zh" ? "手机存储已满，无法保存！" : "Phone storage is full, couldn't save!"); }
 }
 /** Call after any change: saves here straight away and queues a sync. */
-function save() { persist(); Sync.schedule(); }
+function save() { persist(); Sync.schedule(); if (typeof Backups !== "undefined") Backups.keep(); }
 function touch(rec) { rec.updatedAt = now(); }
 
 // ---------- records
@@ -145,17 +145,21 @@ const Photos = (() => {
   let dbp = null;
   function idb() {
     if (!dbp) dbp = new Promise((res, rej) => {
-      const r = indexedDB.open("clay", 1);
-      r.onupgradeneeded = () => r.result.createObjectStore("blobs");
+      const r = indexedDB.open("clay", 2);
+      r.onupgradeneeded = (e) => {
+        const db = r.result;
+        if (!db.objectStoreNames.contains("blobs")) db.createObjectStore("blobs");
+        if (!db.objectStoreNames.contains("backups")) db.createObjectStore("backups");
+      };
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);
     });
     return dbp;
   }
-  async function tx(mode, fn) {
+  async function tx(mode, fn, store = "blobs") {
     const db = await idb();
     return new Promise((res, rej) => {
-      const t = db.transaction("blobs", mode), st = t.objectStore("blobs");
+      const t = db.transaction(store, mode), st = t.objectStore(store);
       const out = fn(st);
       t.oncomplete = () => res(out && out.result !== undefined ? out.result : out);
       t.onerror = () => rej(t.error);
@@ -203,12 +207,57 @@ const Photos = (() => {
       return cloudUrl || "";
     },
     forget(list) { for (const p of list) { del(p.id); del(p.id + ".t"); } },
-    get, del,
+    get, del, tx,
     /** Every photo not yet in the cloud, with the record that holds it. */
     pending() {
       const out = [];
       for (const c of COLLECTIONS) for (const rec of Object.values(DB[c])) for (const p of photosOf(rec)) if (!p.url) out.push({ c, id: rec.id, p });
       return out;
+    }
+  };
+})();
+
+/* ---------- a copy on this phone, kept away from the main one
+ * One snapshot a day, the last seven kept. If the main copy is ever missing or
+ * unreadable at start-up, the newest snapshot is put back automatically. */
+const Backups = (() => {
+  const KEEP = 7;
+  const all = () => Photos.tx("readonly", (st) => st.getAllKeys(), "backups").then((k) => (k || []).sort().reverse()).catch(() => []);
+  const read = (key) => Photos.tx("readonly", (st) => st.get(key), "backups").catch(() => null);
+  const count = (d) => COLLECTIONS.reduce((a, c) => a + Object.keys((d && d[c]) || {}).length, 0);
+  return {
+    all, read, count,
+    /** Called after saving: writes today's copy if there isn't one yet. */
+    async keep() {
+      try {
+        const key = today();
+        const keys = await all();
+        if (keys.includes(key)) return;
+        if (!count(DB)) return;                      // never snapshot an empty app
+        await Photos.tx("readwrite", (st) => { st.put({ at: now(), data: JSON.parse(JSON.stringify(DB)) }, key); }, "backups");
+        for (const old of (await all()).slice(KEEP)) await Photos.tx("readwrite", (st) => { st.delete(old); }, "backups");
+      } catch (e) {}
+    },
+    /** Put a copy back: anything missing here is added again, nothing is removed. */
+    restore(data) {
+      const fresh = normalise(JSON.parse(JSON.stringify(data)));
+      for (const c of COLLECTIONS) for (const rec of Object.values(fresh[c])) {
+        if (!DB[c][rec.id]) { rec.updatedAt = now(); delete DB.deleted[`${c}:${rec.id}`]; }   // undelete what was lost
+      }
+      DB = merge(DB, fresh);
+      save();
+      return count(fresh);
+    },
+    /** At start-up, when the main copy has gone. */
+    async rescue() {
+      if (count(DB)) return false;
+      const keys = await all();
+      if (!keys.length) return false;
+      const snap = await read(keys[0]);
+      if (!snap || !count(snap.data)) return false;
+      DB = normalise(snap.data);
+      persist();
+      return true;
     }
   };
 })();

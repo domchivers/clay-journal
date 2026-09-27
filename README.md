@@ -84,5 +84,58 @@ create policy "own pottery" on public.pottery
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 ```
 
+## Backups
+
+Four layers, so nothing can quietly disappear:
+
+1. **Sync never uploads first.** After signing in the app pulls and merges before it
+   pushes, so a fresh install can't overwrite what's in the cloud.
+2. **A copy on the phone**, in IndexedDB away from the main store: one per day the app
+   is used, the last seven kept. If the main copy is ever missing at start-up, the
+   newest is put back automatically.
+3. **Daily copies in the cloud** (last 30), made by a database trigger. Settings lists
+   every phone and cloud copy with a **Restore** button; restoring adds back what's
+   missing and never removes anything, so it undoes an accidental delete.
+4. **Export** writes the lot to a JSON file you keep yourself.
+
+One-off setup for layer 3, in the SQL Editor:
+
+```sql
+create table if not exists public.pottery_backups (
+  id bigserial primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  data jsonb not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists pottery_backups_user on public.pottery_backups (user_id, created_at desc);
+alter table public.pottery_backups enable row level security;
+drop policy if exists "pottery backups read own" on public.pottery_backups;
+create policy "pottery backups read own" on public.pottery_backups for select to authenticated using (user_id = auth.uid());
+
+create or replace function public.pottery_snapshot() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  -- keep the copy being replaced, at most one every 20 hours, never an empty one
+  if old.data is not null
+     and coalesce((select count(*) from jsonb_object_keys(coalesce(old.data->'pieces', '{}'::jsonb))), 0) > 0
+     and not exists (select 1 from pottery_backups where user_id = old.user_id and created_at > now() - interval '20 hours') then
+    insert into pottery_backups (user_id, data) values (old.user_id, old.data);
+    delete from pottery_backups where user_id = old.user_id and id not in
+      (select id from pottery_backups where user_id = old.user_id order by created_at desc limit 30);
+  end if;
+  return new;
+end $$;
+drop trigger if exists pottery_snapshot on public.pottery;
+create trigger pottery_snapshot before update on public.pottery for each row execute function public.pottery_snapshot();
+```
+
+### Keeping the Supabase project alive
+
+A free Supabase project pauses after about a week with no activity; the data stays,
+but signing in fails until it's resumed from the dashboard. Normal use of any of the
+three apps counts as activity. Photos share the 1 GB free storage allowance — at
+roughly 250 KB a photo that's thousands of them, and Settings shows how many are
+still waiting to upload.
+
 **Settings → Export** downloads everything as JSON (photo links included, not the
 photo files); **Import** merges a file back in.
