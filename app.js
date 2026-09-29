@@ -83,9 +83,47 @@ function calc(p) {
     shrinkFavg: avgText(shrink(from, p.final, keys)),
     shrinkHB: shrinkText(shrink(handleOf(p.wet), handleOf(p.bisque))),
     shrinkHF: shrinkText(shrink(handleOf(p.wet), handleOf(p.final))),
+    lossB: lossText(p, p.bisque),
+    lossF: lossText(p, p.final),
+    expect: expectText(p, keys),
     costTotal: cost.total ? money(cost.total) : "–",
     stage: t("stage." + stageOf(p))
   };
+}
+/** Weight lost since the piece was made: from the trimmed weight when there is one, else as thrown. */
+function lossText(p, o) {
+  const a = has(trimWeight(p)) ? Number(trimWeight(p)) : n0((p.wet || {}).weight), b = o && o.weight;
+  if (!a || !has(b)) return "–";
+  return `${fmt(a - b, 0)} g (${fmt((a - b) / a * 100)}%)`;
+}
+/* What this piece should measure once finished, from the shrinkage of earlier pieces of the same
+ * shape (the same clay when there are some, since clays shrink differently). */
+function expectFor(p, keys) {
+  const start = startOf(p, keys);
+  if (!hasDims(start, keys)) return null;
+  const main = (p.clay || []).filter((r) => r.type).sort((a, b) => n0(b.g) - n0(a.g))[0];
+  const shape = p.shape || "box";
+  const past = Object.values(DB.pieces).filter((q) => q.id !== p.id && (q.shape || "box") === shape && hasDims(q.final, keys));
+  const same = main ? past.filter((q) => (q.clay || []).some((r) => r.type === main.type)) : [];
+  const from = same.length ? same : past;
+  const out = { n: from.length, keys: [] };
+  for (const f of keys) {
+    const s = from.map((q) => shrink(startOf(q, keys), q.final, keys)).filter((x) => x && has(x[f.key])).map((x) => x[f.key]);
+    const a = mget(start, f.key);
+    if (!s.length || !has(a)) continue;
+    out[f.key] = a * (1 - s.reduce((x, y) => x + y, 0) / s.length / 100);
+    out.keys.push(f);
+  }
+  return out.keys.length ? out : null;
+}
+function expectText(p, keys) {
+  const e = expectFor(p, keys);
+  if (!e) return "–";
+  return `${e.keys.map((f) => `${f.label} ${fmt(e[f.key])}`).join(" · ")} ${p.unit || SETTINGS.unit} · ${t("expect.count", { n: e.n })}`;
+}
+/** A computed figure that stays in the page and shows itself as soon as there's something to show. */
+function calcRow(key, lbl, c) {
+  return `<div class="calc"${c[key] === "–" ? " hidden" : ""}><span>${esc(lbl)}</span><b data-calc="${key}">${esc(c[key])}</b></div>`;
 }
 
 /* ---------- what a piece cost to make
@@ -106,6 +144,20 @@ function orderLines(b) {
     return { kind: x.kind || "clay", name: x.name, grams: has(x.grams) ? Number(x.grams) : 0, cost, share, total: cost + share };
   });
 }
+/** The most recent order, at one shop if given. */
+function lastOrder(store, except) {
+  return Object.values(DB.purchases).filter((b) => b.id !== except && (!store || b.store === store) && (b.items || []).some((x) => x && (x.name || has(x.grams) || has(x.cost))))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt)[0] || null;
+}
+function orderCopy(b) {
+  const items = (b.items || []).filter((x) => x && (x.name || has(x.grams) || has(x.cost))).map((x) => ({ kind: x.kind || "clay", name: x.name || "", grams: x.grams, cost: x.cost }));
+  return { store: b.store || null, delivery: b.delivery, items, copiedFrom: b.id };
+}
+/** Still exactly the copy it started as, so switching shop can swap it for that shop's order. */
+function orderCopied(rec) {
+  const src = rec.copiedFrom && DB.purchases[rec.copiedFrom];
+  return !!src && JSON.stringify(orderCopy(src).items) === JSON.stringify(orderCopy(rec).items);
+}
 const orderTotal = (b) => orderLines(b).reduce((a, l) => a + l.cost, 0) + (has(b.delivery) ? Number(b.delivery) : 0);
 function rateFor(kind, name) {
   let g = 0, c = 0;
@@ -117,19 +169,50 @@ function rateFor(kind, name) {
   }
   return g > 0 ? c / g : null;   // cost per gram including delivery, or null when nothing has been bought
 }
-function firingShare(fid) {
-  const f = DB.firings[fid];
-  if (!f) return { fee: 0, travel: 0 };
-  const n = piecesInFiring(fid).length || 1;
-  return { fee: (has(f.fee) ? Number(f.fee) : 0) / n, travel: (has(f.travel) ? Number(f.travel) : 0) / n, n };
+/* A communal firing has two fares, one for the trip to drop pieces off and one for the trip to
+ * collect them, both shared equally. The fee is either one total shared equally between the
+ * pieces, or a price per kg charged on what each piece weighed going in. */
+const n0 = (v) => has(v) ? Number(v) : 0;
+const byWeight = (f) => f && f.split === "weight";
+const faresOf = (f) => n0(f.travel) + n0(f.travelBack);
+/** What a piece weighed going into this firing: trimmed (bone dry) for a bisque, bisque weight for a glaze. */
+function firingWeight(p, fid) {
+  const order = p.bisque && p.bisque.firingId === fid
+    ? [trimWeight(p), (p.wet || {}).weight, (p.bisque || {}).weight]
+    : [(p.bisque || {}).weight, (p.final || {}).weight, trimWeight(p), (p.wet || {}).weight];
+  const w = order.find(has);
+  return w == null ? null : Number(w);
 }
+function firingFee(f) {
+  if (!byWeight(f)) return n0(f.fee);
+  return piecesInFiring(f.id).reduce((a, p) => a + n0(f.perKg) * n0(firingWeight(p, f.id)) / 1000, 0);
+}
+const firingTotal = (f) => firingFee(f) + faresOf(f);
+function firingShare(fid, p) {
+  const f = DB.firings[fid];
+  if (!f) return { fee: 0, travel: 0, n: 0 };
+  const n = piecesInFiring(fid).length || 1;
+  const w = p ? firingWeight(p, fid) : null;
+  const fee = byWeight(f) ? n0(f.perKg) * n0(w) / 1000 : n0(f.fee) / n;
+  return { fee, travel: faresOf(f) / n, n, w, weighed: !byWeight(f) || has(w) };
+}
+/** Which weight clay is charged on: all the clay used, or only what's left after trimming (the trimmings get reclaimed). */
+const clayBasis = () => SETTINGS.clayBasis === "trim" ? "trim" : "wet";
 function pieceCost(p) {
-  const out = { clay: 0, glaze: 0, firing: 0, travel: 0, other: 0, missing: [] };
-  for (const row of p.clay || []) {
-    if (!row.type || !has(row.g)) continue;
-    const r = rateFor("clay", row.type);
-    if (r == null) { out.missing.push(label("clay", row.type)); continue; }
-    out.clay += r * Number(row.g);
+  const out = { clay: 0, clayG: 0, clayBasis: clayBasis(), glaze: 0, firing: 0, travel: 0, other: 0, missing: [] };
+  const typed = (p.clay || []).filter((row) => row.type);
+  const rowG = typed.reduce((a, row) => a + n0(row.g), 0);
+  // the mix of clays, and how many grams of wet clay went in
+  const mix = rowG > 0 ? typed.filter((row) => n0(row.g) > 0).map((row) => ({ type: row.type, share: n0(row.g) / rowG }))
+    : typed.map((row) => ({ type: row.type, share: 1 / typed.length }));
+  const wetG = rowG > 0 ? rowG : n0((p.wet || {}).weight);
+  if (out.clayBasis === "trim" && !has(trimWeight(p))) out.clayBasis = "wet";   // not trimmed yet: fall back to the wet clay
+  out.clayG = out.clayBasis === "trim" ? Number(trimWeight(p)) : wetG;
+  if (!mix.length && out.clayG) out.missing.push(t("cost.noClayType"));
+  for (const m of mix) {
+    const r = rateFor("clay", m.type);
+    if (r == null) { out.missing.push(label("clay", m.type)); continue; }
+    out.clay += r * out.clayG * m.share;
   }
   const g = p.glaze || {};
   if (has(g.grams) && (g.glazes || []).length) {
@@ -140,8 +223,9 @@ function pieceCost(p) {
   for (const key of ["bisque", "glaze"]) {
     const fid = p[key] && p[key].firingId;
     if (!fid) continue;
-    const sh = firingShare(fid);
+    const sh = firingShare(fid, p);
     out.firing += sh.fee; out.travel += sh.travel;
+    if (!sh.weighed) out.missing.push(t("cost.noWeight"));
   }
   if (has(p.otherCost)) out.other += Number(p.otherCost);
   out.total = out.clay + out.glaze + out.firing + out.travel + out.other;
@@ -160,7 +244,7 @@ function handleBlock(stage, o, unit, withCut, c) {
     ${withCut ? field(`${t("f.handleCut")} (${esc(unit)})`, numIn(`${stage}.handle.cut`, h.cut)) : ""}
     <span class="lbl">${t("f.handleDims")}</span>
     ${dims(`${stage}.handle`, h, unit, [{ key: "l", label: t("dim.l") }, { key: "w", label: t("dim.w") }, { key: "h", label: t("dim.h") }])}
-    ${stage === "wet" ? "" : `<div class="calc"><span>${t(stage === "bisque" ? "f.shrinkHandleB" : "f.shrinkHandleF")}</span><b data-calc="${stage === "bisque" ? "shrinkHB" : "shrinkHF"}">${stage === "bisque" ? c.shrinkHB : c.shrinkHF}</b></div>`}
+    ${stage === "wet" ? "" : calcRow(stage === "bisque" ? "shrinkHB" : "shrinkHF", t(stage === "bisque" ? "f.shrinkHandleB" : "f.shrinkHandleF"), c)}
   </div></details>`;
 }
 function shrinkText(s) {
@@ -377,7 +461,8 @@ const TAB_BODY = {
       <span class="lbl">${t("f.dimsTrimmed")}</span>
       ${dims("trim", tr, u, keys)}
       ${field(t("f.weightTrimmed"), numIn("trim.weight", has(tr.weight) ? tr.weight : (w.trimmed)))}
-      ${has(w.weight) && has(trimWeight(p)) ? `<div class="calc"><span>${t("f.trimmedOff")}</span><b data-calc="trimmed">${c.trimmed}</b></div>` : ""}
+      ${calcRow("trimmed", t("f.trimmedOff"), c)}
+      ${calcRow("expect", t("f.expect"), c)}
       ${handleBlock("wet", w, u, true, c)}
       <span class="lbl">${t("sec.clay")}</span>
       ${clayRows}
@@ -393,9 +478,10 @@ const TAB_BODY = {
     return `
       <span class="lbl">${t("f.dimsBisque")} (${esc(u)})</span>
       ${dims("bisque", b, u, shapeFields(p))}
-      ${c.shrinkB === "–" ? "" : `<div class="calc"><span>${t("f.shrinkBisque")}</span><b data-calc="shrinkB">${c.shrinkB}</b></div>`}
+      ${calcRow("shrinkB", t("f.shrinkBisque"), c)}
       ${handleBlock("bisque", b, u, false, c)}
       ${field(t("f.weightBisque"), numIn("bisque.weight", b.weight))}
+      ${calcRow("lossB", t("f.lossBisque"), c)}
       ${field(t("f.firing"), firingSelect("bisque.firingId", b.firingId, "bisque"))}`;
   },
   glaze(p) {
@@ -411,9 +497,10 @@ const TAB_BODY = {
     return `
       <span class="lbl">${t("f.dimsFinal")} (${esc(u)})</span>
       ${dims("final", f, u, shapeFields(p))}
-      ${c.shrinkF === "–" ? "" : `<div class="calc"><span>${t("f.shrinkFinal")}</span><b data-calc="shrinkF">${c.shrinkF}</b></div>`}
+      ${calcRow("shrinkF", t("f.shrinkFinal"), c)}
       ${handleBlock("final", f, u, false, c)}
       ${field(t("f.weightFinal"), numIn("final.weight", f.weight))}
+      ${calcRow("lossF", t("f.lossFinal"), c)}
       ${field(t("f.outcome"), chips("final.outcome", OUTCOMES, f.outcome, (v) => t("outcome." + v), { single: true, cls: "oc" }))}
       ${f.outcome && f.outcome !== "success" ? field(t("f.defects"), chips("final.defects", DEFECTS, f.defects, (v) => t("defect." + v))) : ""}
       ${f.outcome && f.outcome !== "success" && (f.defects || []).includes("other") ? field(t("f.defectOther"), textIn("final.defectOther", f.defectOther)) : ""}`;
@@ -430,13 +517,16 @@ const TAB_BODY = {
   cost(p) {
     const s = p.sale || {}, k = pieceCost(p);
     const line = (lbl, v, note) => v ? `<div class="costrow"><span>${esc(lbl)}${note ? ` <i>${esc(note)}</i>` : ""}</span><b>${esc(money(v))}</b></div>` : "";
-    const fired = ["bisque", "glaze"].map((x) => p[x] && p[x].firingId).filter(Boolean);
+    const fired = ["bisque", "glaze"].map((x) => p[x] && p[x].firingId).filter((fid) => DB.firings[fid]);
     const shareNote = fired.length ? t("cost.perPiece", { n: firingShare(fired[0]).n }) : "";
+    const feeNote = fired.length && fired.every((fid) => byWeight(DB.firings[fid])) ? t("cost.byWeight") : shareNote;
+    const clayNote = k.clayG ? `${fmt(k.clayG, 0)} g · ${t(k.clayBasis === "trim" ? "cost.basisTrim" : "cost.basisWet").toLowerCase()}` : "";
     return `
+      ${field(t("cost.clayBy"), chips("clayBasis", ["wet", "trim"], clayBasis(), (v) => t(v === "trim" ? "cost.basisTrim" : "cost.basisWet"), { single: true }))}
       <div class="costs">
-        ${line(t("cost.clay"), k.clay)}
+        ${line(t("cost.clay"), k.clay, clayNote)}
         ${line(t("cost.glaze"), k.glaze)}
-        ${line(t("cost.firing"), k.firing, shareNote)}
+        ${line(t("cost.firing"), k.firing, feeNote)}
         ${line(t("cost.travel"), k.travel, shareNote)}
         ${line(t("cost.other"), k.other, p.otherNote || "")}
         <div class="costrow total"><span>${t("cost.total")}</span><b data-calc="costTotal">${k.total ? esc(money(k.total)) : "–"}</b></div>
@@ -463,7 +553,7 @@ VIEWS.firings = () => {
     return swipeable(`<a class="card firing" href="#/firing/${esc(f.id)}">
       <div class="card-body"><div class="card-title">${esc(dateText(f.date, true))} · ${esc(label("ftype", f.type))}</div>
       <div class="meta">${esc([(f.where || "home") === "studio" ? (f.studio ? label("studio", f.studio) : t("fire.studio")) : t("fire.home"), f.cone, t("pieces.count", { n: ps.length }),
-        has(f.fee) || has(f.travel) ? money((has(f.fee) ? Number(f.fee) : 0) + (has(f.travel) ? Number(f.travel) : 0)) : ""].filter(Boolean).join(" · "))}</div></div>
+        firingTotal(f) ? money(firingTotal(f)) : ""].filter(Boolean).join(" · "))}</div></div>
       <div class="stack">${ps.slice(0, 4).map((p) => img(coverOf(p), "tiny")).join("")}</div></a>`, "firings", f.id);
   }).join("") || empty(t("empty.firings"))}</div>
   <div class="fab"><button class="btn primary" data-act="new-firing">${ICON.plus} ${t("btn.newFiring")}</button></div>`;
@@ -475,23 +565,53 @@ VIEWS.firing = (r) => {
   const ps = piecesInFiring(f.id);
   const kilns = [...new Set(Object.values(DB.firings).map((x) => x.kiln).filter(Boolean))];
   const where = f.where || "home";
+  const fc = firingCalc(f);
   return `<div data-rec data-coll="firings" data-id="${esc(f.id)}" class="editor pad">
     ${field(t("fire.where"), chips("where", ["home", "studio"], where, (v) => t("fire." + v), { single: true }))}
     ${where === "studio" ? `
       ${field(t("fire.studioName"), chips("studio", [...new Set([...listValues("studios"), f.studio].filter(Boolean))], f.studio, (v) => label("studio", v), { single: true, add: "studios" }))}
-      <div class="grid2">${field(`${t("fire.fee")} (${esc(SETTINGS.currency)})`, numIn("fee", f.fee))}${field(`${t("fire.travel")} (${esc(SETTINGS.currency)})`, numIn("travel", f.travel))}</div>
-      <div class="grid2">${field(t("fire.sent"), dateIn("date", f.date))}${field(t("fire.collected"), dateIn("collected", f.collected))}</div>
-      ${has(f.fee) || has(f.travel) ? `<div class="calc"><span>${t("cost.perPiece", { n: piecesInFiring(f.id).length || 1 })}</span><b>${esc(money(((has(f.fee) ? Number(f.fee) : 0) + (has(f.travel) ? Number(f.travel) : 0)) / (piecesInFiring(f.id).length || 1)))}</b></div>` : ""}
+      ${field(t("fire.charged"), chips("split", ["pieces", "weight"], byWeight(f) ? "weight" : "pieces", (v) => t("fire.split." + v), { single: true }))}
+      ${byWeight(f)
+        ? field(`${t("fire.perKg")} (${esc(SETTINGS.currency)})`, numIn("perKg", f.perKg))
+        : field(`${t("fire.fee")} (${esc(SETTINGS.currency)})`, numIn("fee", f.fee))}
+      <div class="grid2">${field(t("fire.sent"), dateIn("date", f.date))}${field(`${t("fire.fareThere")} (${esc(SETTINGS.currency)})`, numIn("travel", f.travel))}</div>
+      <div class="grid2">${field(t("fire.collected"), dateIn("collected", f.collected))}${field(`${t("fire.fareBack")} (${esc(SETTINGS.currency)})`, numIn("travelBack", f.travelBack))}</div>
+      ${calcRow("feeTotal", byWeight(f) ? t("fire.feeByWeight") : t("fire.fee"), fc)}
+      ${calcRow("perPiece", byWeight(f) ? t("fire.faresPerPiece", { n: ps.length || 1 }) : t("cost.perPiece", { n: ps.length || 1 }), fc)}
     ` : field(t("f.date"), dateIn("date", f.date))}
     ${field(t("f.firingType"), chips("type", FTYPES, f.type, (v) => t("ftype." + v), { single: true }))}
     <div class="grid2">${field(`${t("f.cone")} (${t("optional")})`, textIn("cone", f.cone, LANG === "zh" ? "6号锥 / 1230°C" : "Cone 6 / 1230°C"))}${field(t("f.kiln"), textIn("kiln", f.kiln, "", "dl-kilns"))}</div>
     <datalist id="dl-kilns">${kilns.map((k) => `<option value="${esc(k)}">`).join("")}</datalist>
     ${field(t("f.notes"), area("notes", f.notes, LANG === "zh" ? "升温曲线、保温、观察……" : "Schedule, ramp/hold, observations…"))}
     <div class="row between"><span class="lbl">${t("f.linked")} (${ps.length})</span><button class="btn small" data-act="firing-pick">${ICON.plus} ${t("btn.addPieces")}</button></div>
-    <div class="cards">${ps.map((p) => `<div class="card piece slim"><a href="#/piece/${esc(p.id)}" class="cover-link"></a>${img(coverOf(p), "thumb")}<div class="card-body"><div class="card-title">${esc(pieceName(p))}</div><div class="meta">${t("stage." + stageOf(p))}</div></div><button class="icon-btn" data-act="firing-unlink" data-id="${esc(p.id)}">${ICON.x}</button></div>`).join("") || empty(t("empty.linked"))}</div>
+    <div class="cards">${ps.map((p) => `<div class="card piece slim"><a href="#/piece/${esc(p.id)}" class="cover-link"></a>${img(coverOf(p), "thumb")}<div class="card-body"><div class="card-title">${esc(pieceName(p))}</div><div class="meta">${t("stage." + stageOf(p))}${where === "studio" ? ` · <span data-calc="fp-${esc(p.id)}">${esc(fc["fp-" + p.id])}</span>` : ""}</div></div><button class="icon-btn" data-act="firing-unlink" data-id="${esc(p.id)}">${ICON.x}</button></div>`).join("") || empty(t("empty.linked"))}</div>
     <button class="btn danger wide" data-act="delete" data-coll="firings">${t("btn.delete")}</button>
   </div>`;
 };
+
+/** The firing page's figures: the fee, each piece's share, and what each piece weighed in. */
+function firingCalc(f) {
+  const ps = piecesInFiring(f.id), n = ps.length || 1;
+  const out = {
+    feeTotal: firingFee(f) ? money(firingFee(f)) : "–",
+    perPiece: byWeight(f) ? (faresOf(f) ? money(faresOf(f) / n) : "–") : (firingTotal(f) ? money(firingTotal(f) / n) : "–")
+  };
+  for (const p of ps) {
+    const sh = firingShare(f.id, p);
+    out["fp-" + p.id] = byWeight(f) ? (has(sh.w) ? `${fmt(sh.w, 0)} g · ${money(sh.fee + sh.travel)}` : t("cost.noWeight"))
+      : (sh.fee + sh.travel ? money(sh.fee + sh.travel) : "");
+  }
+  return out;
+}
+function purchaseCalc(b) {
+  const out = { orderTotal: orderTotal(b) ? money(orderTotal(b)) : "–" };
+  const lines = orderLines(b);
+  (b.items || []).forEach((it, i) => {
+    const l = lines.find((x) => x.name === it.name && x.kind === (it.kind || "clay"));
+    out["rate-" + i] = l && l.grams ? t("buy.rate", { rate: money(l.total / l.grams * 1000) }) : "–";
+  });
+  return out;
+}
 
 function designName(d) { return (d.description || "").split("\n")[0].slice(0, 40) || `${t("ideas.designs")} · ${dateText(new Date(d.createdAt).toISOString().slice(0, 10))}`; }
 VIEWS.ideas = () => {
@@ -575,6 +695,7 @@ VIEWS.costs = () => {
   const sold = ps.filter((p) => (p.sale || {}).status === "sold");
   const forSale = ps.filter((p) => (p.sale || {}).status === "for");
   return `${words}
+    <div class="pad">${field(t("cost.clayBy"), chips("clayBasis", ["wet", "trim"], clayBasis(), (v) => t(v === "trim" ? "cost.basisTrim" : "cost.basisWet"), { single: true }))}</div>
     <div class="rows">
       <div class="srow">${t("cost.made")}<span class="v">${esc(money(made))}</span></div>
       <div class="srow">${t("cost.sold")}<span class="v">${sold.length ? `${t("pieces.count", { n: sold.length })} · ${esc(money(sold.reduce((a, p) => a + salePrice(p), 0)))}` : "–"}</span></div>
@@ -592,12 +713,10 @@ VIEWS.costs = () => {
 VIEWS.purchase = (r) => {
   const b = DB.purchases[r.id];
   if (!b) return null;
-  const lines = orderLines(b);
+  const pc = purchaseCalc(b);
   const rows = (b.items || []).map((it, i) => {
     const kind = it.kind || "clay";
     const names = [...new Set([...listValues(kind === "glaze" ? "glazes" : "clay"), it.name].filter(Boolean))];
-    const line = lines.find((l) => l.name === it.name && l.kind === kind);
-    const rate = line && line.grams ? `${money(line.total / line.grams * 1000)}/kg` : "";
     return `<div class="item">
       <div class="item-top">
         <select data-f="items.${i}.kind">${["clay", "glaze"].map((k) => `<option value="${k}"${k === kind ? " selected" : ""}>${t("buy." + k)}</option>`).join("")}</select>
@@ -608,7 +727,7 @@ VIEWS.purchase = (r) => {
         <label><span>${t("buy.amount")}</span>${numIn(`items.${i}.grams`, it.grams)}</label>
         <label><span>${t("buy.cost")} (${esc(SETTINGS.currency)})</span>${numIn(`items.${i}.cost`, it.cost)}</label>
       </div>
-      ${rate ? `<div class="meta rate">${esc(t("buy.rate", { rate }))}</div>` : ""}
+      <div class="meta rate"${pc["rate-" + i] === "–" ? " hidden" : ""} data-calc="rate-${i}">${esc(pc["rate-" + i])}</div>
     </div>`;
   }).join("");
   return `<div data-rec data-coll="purchases" data-id="${esc(b.id)}" class="editor pad">
@@ -617,7 +736,7 @@ VIEWS.purchase = (r) => {
     <span class="lbl">${t("buy.items")}</span>
     ${rows}
     <button class="btn small" data-act="item-add">${ICON.plus} ${t("buy.addItem")}</button>
-    ${orderTotal(b) ? `<div class="calc"><span>${t("buy.orderTotal")}</span><b>${esc(money(orderTotal(b)))}</b></div>` : ""}
+    ${calcRow("orderTotal", t("buy.orderTotal"), pc)}
     ${has(b.delivery) && Number(b.delivery) ? `<p class="meta">${t("buy.deliveryNote")}</p>` : ""}
     ${field(t("f.notes"), textIn("note", b.note))}
     <button class="btn danger wide" data-act="delete" data-coll="purchases">${t("btn.delete")}</button>
@@ -757,12 +876,18 @@ function paintSync() {
   dot.title = !u ? t("sync.needSignIn") : syncLine();
   const line = $("#sync-line"); if (line) line.textContent = syncLine();
 }
+/* Every computed figure on the page refreshes as you type, and a row whose figure has just
+ * become available shows itself. */
+const CALCS = { piece: (r) => calc(r), firing: (r) => firingCalc(r), purchase: (r) => purchaseCalc(r) };
 function updateCalcs(rec) {
-  if (ROUTE.name !== "piece") return;
-  const c = calc(rec);
+  if (!CALCS[ROUTE.name]) return;
+  const c = CALCS[ROUTE.name](rec);
   $$("[data-calc]").forEach((el) => {
     const v = c[el.dataset.calc];
+    if (v === undefined) return;
     el.textContent = el.closest("summary") && v === "–" ? "" : v;
+    const row = el.closest(".calc") || (el.classList.contains("rate") ? el : null);
+    if (row) row.hidden = v === "–" || v === "";
   });
   if (ROUTE.name === "piece" && document.activeElement && document.activeElement.dataset.f === "title") $("#title").textContent = pieceName(rec);
 }
@@ -926,7 +1051,13 @@ document.addEventListener("click", async (e) => {
     case "piece-tab": PIECE_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
     case "costs-tab": COSTS_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
     case "fire-where": FIRE_WHERE = el.dataset.val; render(true); return;
-    case "new-purchase": { const b = newRecord("purchases", { date: today(), items: [{ kind: "clay" }] }); save(); go("#/purchase/" + b.id); return; }
+    case "new-purchase": {   // most orders repeat the last one, so start from a copy of it
+      const last = lastOrder();
+      const b = newRecord("purchases", Object.assign({ date: today(), items: [{ kind: "clay" }] }, last ? orderCopy(last) : {}));
+      save(); go("#/purchase/" + b.id);
+      if (last) toast(t("buy.copied", { shop: last.store ? label("store", last.store) : dateText(last.date) }));
+      return;
+    }
     case "item-add": rec.items = [...(rec.items || []), { kind: (rec.items || []).length ? rec.items[rec.items.length - 1].kind : "clay" }]; changed(rec, true); return;
     case "item-del": rec.items.splice(Number(el.dataset.i), 1); changed(rec, true); return;
     case "shape": rec.shape = el.dataset.val; changed(rec, true); return;
@@ -1108,6 +1239,7 @@ function deleteRecord(coll, id, fromPage) {
 function onChip(el, rec) {
   const group = el.dataset.group, val = el.dataset.val, single = el.dataset.single !== undefined;
   if (group === "addStage") { ROUTE.addStage = val; $$(`[data-group="addStage"]`).forEach((b) => b.setAttribute("aria-pressed", b.dataset.val === val)); return; }
+  if (group === "clayBasis") { SETTINGS.clayBasis = val; saveSettings(); render(true); return; }
   if (group.startsWith("gf.")) {
     const k = group.slice(3), F = SETTINGS.galleryFilters;
     F[k] = F[k] === val ? null : val; saveSettings(); render(true); return;
@@ -1119,9 +1251,14 @@ function onChip(el, rec) {
   }
   if (!rec) return;
   const cur = getPath(rec, group);
-  if (single) setPath(rec, group, cur === val && !["sale.status", "status", "type", "where"].includes(group) ? null : val);
+  if (single) setPath(rec, group, cur === val && !["sale.status", "status", "type", "where", "split"].includes(group) ? null : val);
   else { const arr = Array.isArray(cur) ? cur : []; setPath(rec, group, arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]); }
   if (group === "sale.status" && val === "sold" && !rec.sale.soldDate) rec.sale.soldDate = today();
+  if (group === "store" && rec.store === val && ROUTE.name === "purchase") {   // picking a shop brings in what's usually bought there
+    const last = lastOrder(val, rec.id);
+    const blank = !(rec.items || []).some((x) => x && (x.name || has(x.grams) || has(x.cost)));
+    if (last && (blank || orderCopied(rec))) { Object.assign(rec, orderCopy(last)); toast(t("buy.copied", { shop: label("store", val) })); }
+  }
   changed(rec, true);
 }
 
@@ -1202,7 +1339,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "21";
+const APP_VERSION = "22";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
