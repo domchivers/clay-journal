@@ -12,7 +12,9 @@ const fmt = (n, d = 1) => has(n) ? (Math.round(n * 10 ** d) / 10 ** d).toString(
 const money = (n) => has(n) ? `${SETTINGS.currency}${Number(n).toFixed(2)}` : "";
 
 const TECHNIQUES = ["wheel", "hand", "coil", "slab", "pinch", "marbled"];
-const STAGES = ["wet", "bisque", "glazed", "final"];
+/* Glazed is the finished look, so it's the last stage. What's measured after the glaze firing
+ * still lives in p.final, it's just shown on the Glazed tab. */
+const STAGES = ["wet", "bisque", "glazed"];
 const METHODS = ["dip", "spray", "brush"];
 const OUTCOMES = ["success", "partial", "failed"];
 const DEFECTS = ["crack", "warp", "crawl", "pinhole", "color", "other"];
@@ -55,8 +57,8 @@ function stageOf(p) {
   const keys = shapeFields(p);
   if (hasDims(p.bisque, keys) || any(p.bisque, ["weight", "firingId"]) || hasHandle(p.bisque)) i = 1;
   if (any(p.glaze, ["glazes", "method", "firingId", "grams"])) i = 2;
-  if (hasDims(p.final, keys) || any(p.final, ["weight", "outcome"]) || hasHandle(p.final)) i = 3;
-  for (const ph of p.photos || []) i = Math.max(i, STAGES.indexOf(ph.stage));
+  if (hasDims(p.final, keys) || any(p.final, ["weight", "outcome"]) || hasHandle(p.final)) i = 2;
+  for (const ph of p.photos || []) i = Math.max(i, STAGES.indexOf(ph.stage === "final" ? "glazed" : ph.stage));
   return STAGES[i];
 }
 function shrink(from, to, keys) {
@@ -349,6 +351,7 @@ let ROUTE = { name: "pieces" };
 let OPEN = new Set();            // which piece-editor sections are expanded
 let OPEN_FOR = null;             // ...and for which piece
 let PIECE_FILTER = "all";
+let PIECE_TAG = null;             // a category tag to narrow the wall to
 function parseRoute() {
   const [name, id] = location.hash.replace(/^#\/?/, "").split("/");
   return { name: name || "pieces", id: id ? decodeURIComponent(id) : null };
@@ -365,14 +368,18 @@ const VIEWS = {};
 VIEWS.pieces = () => {
   const all = sortedPieces();
   const filters = ["all", ...STAGES, "for", "sold"];
-  const shown = all.filter((p) => PIECE_FILTER === "all" ? true : STAGES.includes(PIECE_FILTER) ? stageOf(p) === PIECE_FILTER : (p.sale && p.sale.status) === PIECE_FILTER);
+  const tagsUsed = [...new Set(all.flatMap((p) => p.tags || []))];
+  if (PIECE_TAG && !tagsUsed.includes(PIECE_TAG)) PIECE_TAG = null;
+  const shown = all.filter((p) => PIECE_FILTER === "all" ? true : STAGES.includes(PIECE_FILTER) ? stageOf(p) === PIECE_FILTER : (p.sale && p.sale.status) === PIECE_FILTER)
+    .filter((p) => !PIECE_TAG || (p.tags || []).includes(PIECE_TAG));
   const fl = (v) => v === "all" ? (LANG === "zh" ? "全部" : "All") : STAGES.includes(v) ? t("stage." + v) : t("sale." + v);
   const view = ["grid", "titles", "list"].includes(SETTINGS.pieceView) ? SETTINGS.pieceView : "grid";
   const grid = view !== "list";
   return `
     ${all.length ? `<div class="toolbar"><label class="search">${ICON.search}<input type="search" data-search placeholder="${t("search")}"></label>
       <div class="row between"><div class="wordtabs">${filters.map((v) => `<button data-act="piece-filter" data-val="${v}" aria-pressed="${PIECE_FILTER === v}">${esc(fl(v))}</button>`).join("")}</div>
-      <button class="icon-btn" data-act="piece-view" aria-label="${t("f.layout")}" title="${t("f.layout")}">${{ grid: ICON.grid, titles: ICON.gridText, list: ICON.list }[view]}</button></div></div>` : ""}
+      <button class="icon-btn" data-act="piece-view" aria-label="${t("f.layout")}" title="${t("f.layout")}">${{ grid: ICON.grid, titles: ICON.gridText, list: ICON.list }[view]}</button></div>
+      ${tagsUsed.length ? `<div class="chips scroll tagfilter">${tagsUsed.map((v) => `<button type="button" class="chip" data-act="piece-tag" data-val="${esc(v)}" aria-pressed="${PIECE_TAG === v}">${esc(label("tag", v))}</button>`).join("")}</div>` : ""}</div>` : ""}
     ${grid
       ? `<div class="pgrid${view === "titles" ? " titled" : ""}">${shown.map(pieceTile).join("")}</div>${shown.length ? "" : empty(all.length ? t("empty.match") : t("empty.pieces"))}`
       : `<div class="cards">${shown.map(pieceCard).join("") || empty(all.length ? t("empty.match") : t("empty.pieces"))}</div>`}
@@ -404,7 +411,7 @@ function pieceCard(p) {
 
 /* A piece is one stage at a time: the tabs across the top swap what's below them, so only
  * the handful of numbers that matter right now is on screen. */
-const PIECE_TABS = ["wet", "bisque", "glaze", "final", "design", "cost"];
+const PIECE_TABS = ["wet", "bisque", "glaze", "design", "cost"];
 let PIECE_TAB = null, PIECE_TAB_FOR = null;
 const tabLabel = (k) => k === "glaze" ? t("stage.glazed") : k === "design" ? t("tab.design") : k === "cost" ? t("cost.title") : t("stage." + k);
 /** Has anything been filled in for this tab yet? Marks the tab with a small dot. */
@@ -413,8 +420,7 @@ function tabFilled(p, k) {
   const keys = shapeFields(p);
   if (k === "wet") return hasDims(p.wet, keys) || hasDims(p.trim, keys) || any(p.wet, ["weight", "dryDays", "dryNotes"]) || any(p.trim, ["weight"]) || hasHandle(p.wet) || (p.clay || []).length > 0 || (p.technique || []).length > 0;
   if (k === "bisque") return hasDims(p.bisque, keys) || any(p.bisque, ["weight", "firingId"]) || hasHandle(p.bisque);
-  if (k === "glaze") return any(p.glaze, ["glazes", "method", "firingId", "grams"]);
-  if (k === "final") return hasDims(p.final, keys) || any(p.final, ["weight", "outcome"]) || hasHandle(p.final);
+  if (k === "glaze") return any(p.glaze, ["glazes", "method", "firingId", "grams"]) || hasDims(p.final, keys) || any(p.final, ["weight", "outcome"]) || hasHandle(p.final);
   if (k === "design") return !!p.designId || (p.inspIds || []).length > 0;
   return !!(p.sale && p.sale.status && p.sale.status !== "not") || pieceCost(p).total > 0;
 }
@@ -428,13 +434,13 @@ VIEWS.piece = (r) => {
   const addStage = r.addStage || st;
   const photos = p.photos || [];
   return `<div data-rec data-coll="pieces" data-id="${esc(p.id)}" class="editor">
-    <div class="hero" data-act="${photos.length ? "photo" : ""}" data-pid="${esc((coverOf(p) || {}).id || "")}">${photos.length ? img(coverOf(p), "hero-img", false) : `<label class="hero-add"><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}<span>${t("btn.takePhoto")}</span></label>`}</div>
+    <div class="hero" data-act="${photos.length ? "photo" : ""}" data-pid="${esc((coverOf(p) || {}).id || "")}"${photos.length ? ` data-hold="photo:${esc(coverOf(p).id)}"` : ""}>${photos.length ? img(coverOf(p), "hero-img", false) : `<label class="hero-add"><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}<span>${t("btn.takePhoto")}</span></label>`}</div>
     <input class="title-in" type="text" data-f="title" value="${esc(p.title || "")}" placeholder="${esc(t("untitled"))}">
     <div class="ptabs">${PIECE_TABS.map((k) => `<button data-act="piece-tab" data-val="${k}" aria-pressed="${k === tab}">${esc(tabLabel(k))}${tabFilled(p, k) ? `<i class="dot st-${k === "glaze" ? "glazed" : k}"></i>` : ""}</button>`).join("")}</div>
     <div class="tabbody">${TAB_BODY[tab](p, c, u)}</div>
 
     <div class="photos">
-      <div class="ph-grid">${photos.map((ph) => `<button class="ph" data-act="photo" data-pid="${esc(ph.id)}">${img(ph)}<span class="pill st-${ph.stage}">${t("stage." + ph.stage)}</span>${ph.id === p.cover ? '<i class="star">★</i>' : ""}${ph.url ? "" : '<i class="dot" title="not uploaded"></i>'}</button>`).join("")}
+      <div class="ph-grid">${photos.map((ph) => `<button class="ph" data-act="photo" data-pid="${esc(ph.id)}" data-hold="photo:${esc(ph.id)}">${img(ph)}<span class="pill st-${ph.stage}">${t("stage." + ph.stage)}</span>${ph.id === p.cover ? '<i class="star">★</i>' : ""}${ph.url ? "" : '<i class="dot" title="not uploaded"></i>'}</button>`).join("")}
         <label class="ph add"><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}</label>
         <label class="ph add"><input type="file" accept="image/*" multiple hidden data-upload="piece">${ICON.image}</label></div>
       <div class="ph-stage"><span>${t("f.addStage")}</span>${chips("addStage", STAGES, addStage, (v) => t("stage." + v), { single: true })}</div>
@@ -484,17 +490,13 @@ const TAB_BODY = {
       ${calcRow("lossB", t("f.lossBisque"), c)}
       ${field(t("f.firing"), firingSelect("bisque.firingId", b.firingId, "bisque"))}`;
   },
-  glaze(p) {
-    const g = p.glaze || {};
+  glaze(p, c, u) {
+    const g = p.glaze || {}, f = p.final || {};
     return `
       ${field(t("f.glazes"), chips("glaze.glazes", [...new Set([...listValues("glazes"), ...(g.glazes || [])])], g.glazes, (v) => v, { add: "glazes" }))}
       ${field(t("f.method"), chips("glaze.method", METHODS, g.method, (v) => t("method." + v)))}
       ${field(t("cost.glazeUsed"), numIn("glaze.grams", g.grams))}
-      ${field(t("f.firing"), firingSelect("glaze.firingId", g.firingId, "glaze"))}`;
-  },
-  final(p, c, u) {
-    const f = p.final || {};
-    return `
+      ${field(t("f.firing"), firingSelect("glaze.firingId", g.firingId, "glaze"))}
       <span class="lbl">${t("f.dimsFinal")} (${esc(u)})</span>
       ${dims("final", f, u, shapeFields(p))}
       ${calcRow("shrinkF", t("f.shrinkFinal"), c)}
@@ -548,13 +550,13 @@ VIEWS.firings = () => {
   const all = Object.values(DB.firings).sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt);
   const fs = all.filter((f) => FIRE_WHERE === "all" || (f.where || "home") === FIRE_WHERE);
   return `<div class="toolbar"><div class="wordtabs">${["all", "studio", "home"].map((w) => `<button data-act="fire-where" data-val="${w}" aria-pressed="${FIRE_WHERE === w}">${w === "all" ? t("fire.all") : t("fire." + w)}</button>`).join("")}</div></div>
-  <div class="cards">${fs.map((f) => {
+  <div class="cards boxes">${fs.map((f) => {
     const ps = piecesInFiring(f.id);
     return swipeable(`<a class="card firing" href="#/firing/${esc(f.id)}">
       <div class="card-body"><div class="card-title">${esc(dateText(f.date, true))} · ${esc(label("ftype", f.type))}</div>
       <div class="meta">${esc([(f.where || "home") === "studio" ? (f.studio ? label("studio", f.studio) : t("fire.studio")) : t("fire.home"), f.cone, t("pieces.count", { n: ps.length }),
         firingTotal(f) ? money(firingTotal(f)) : ""].filter(Boolean).join(" · "))}</div></div>
-      <div class="stack">${ps.slice(0, 4).map((p) => img(coverOf(p), "tiny")).join("")}</div></a>`, "firings", f.id);
+      ${firingPhotos(ps)}</a>`, "firings", f.id);
   }).join("") || empty(t("empty.firings"))}</div>
   <div class="fab"><button class="btn primary" data-act="new-firing">${ICON.plus} ${t("btn.newFiring")}</button></div>`;
 };
@@ -589,6 +591,14 @@ VIEWS.firing = (r) => {
   </div>`;
 };
 
+/** A firing's pieces on the right of its box: one big photo, or two, or one big and two small with a count. */
+function firingPhotos(ps) {
+  const pics = ps.map(coverOf).filter(Boolean);
+  if (!pics.length) return "";
+  const cls = pics.length === 2 ? " two" : pics.length > 2 ? " more" : "";
+  const shown = pics.slice(0, 3);
+  return `<div class="fphotos${cls}">${shown.map((ph, i) => `<span>${img(ph)}${i === 2 && pics.length > 3 ? `<i>+${pics.length - 3}</i>` : ""}</span>`).join("")}</div>`;
+}
 /** The firing page's figures: the fee, each piece's share, and what each piece weighed in. */
 function firingCalc(f) {
   const ps = piecesInFiring(f.id), n = ps.length || 1;
@@ -680,7 +690,7 @@ VIEWS.costs = () => {
     const nameOf = (l) => l.kind === "clay" ? label("clay", l.name) : l.name;
     return `${words}
       ${buys.length ? `<div class="rows"><div class="srow">${t("cost.spent")}<span class="v">${esc(money(spent))}</span></div></div>` : ""}
-      <div class="cards">${buys.map((b) => {
+      <div class="cards boxes">${buys.map((b) => {
         const ls = orderLines(b);
         const what = ls.map((l) => nameOf(l) || t("buy." + l.kind)).filter(Boolean).join(", ");
         return swipeable(`<a class="card" href="#/purchase/${esc(b.id)}"><div class="card-body">
@@ -935,7 +945,34 @@ const SHEET_VIEWS = {
         <label class="field"><span>${t("f.date")}</span><input type="date" data-ph="at" value="${esc(ph.at || "")}"></label>
         <div class="row">${ROUTE.name !== "piece" ? `<a class="btn primary" href="#/piece/${esc(rec.id)}">${t("btn.openPiece")}</a>` : ""}
           ${rec.cover !== ph.id ? `<button class="btn" data-act="ph-cover">★ ${t("btn.cover")}</button>` : ""}
+          <label class="btn"><input type="file" accept="image/*" hidden data-upload="replace">${t("btn.replace")}</label>
           <button class="btn danger" data-act="ph-delete">${t("btn.delete")}</button></div>` : ""}`;
+  },
+  /** Hold a photo: swap it for another, make it the cover, or delete it. */
+  photoMenu() {
+    const { rec, ph } = sheetPhoto();
+    if (!ph) { setTimeout(closeSheet); return ""; }
+    return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button>
+      <div class="menu-head">${img(ph, "menu-img")}<span>${t("stage." + ph.stage)}</span></div>
+      <div class="menu">
+        <label class="btn wide"><input type="file" accept="image/*" hidden data-upload="replace">${ICON.image} ${t("btn.replacePhoto")}</label>
+        ${rec.cover !== ph.id ? `<button class="btn wide" data-act="ph-cover">★ ${t("btn.cover")}</button>` : ""}
+        <button class="btn danger wide" data-act="ph-delete">${ICON.trash} ${t("btn.deletePhoto")}</button>
+      </div>`;
+  },
+  /** Hold a piece, design or inspiration tile: open it or delete it. */
+  recordMenu() {
+    const rec = DB[SHEET.coll] && DB[SHEET.coll][SHEET.id];
+    if (!rec) { setTimeout(closeSheet); return ""; }
+    const route = { pieces: "piece", designs: "design", insps: "insp", firings: "firing", purchases: "purchase" }[SHEET.coll];
+    const pic = SHEET.coll === "pieces" ? coverOf(rec) : rec.image;
+    const name = SHEET.coll === "pieces" ? pieceName(rec) : SHEET.coll === "designs" ? designName(rec) : SHEET.coll === "insps" ? inspName(rec) : "";
+    return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button>
+      <div class="menu-head">${pic ? img(pic, "menu-img") : ""}<span>${esc(name)}</span></div>
+      <div class="menu">
+        <a class="btn wide" href="#/${route}/${esc(rec.id)}">${t("btn.open")}</a>
+        <button class="btn danger wide" data-act="menu-delete">${ICON.trash} ${t("btn.delete")}</button>
+      </div>`;
   },
   pickInsp() {
     const p = DB.pieces[SHEET.id];
@@ -1048,6 +1085,7 @@ document.addEventListener("click", async (e) => {
     case "design-from-insp": { const d = newRecord("designs", { status: "concept", inspId: ROUTE.id }); save(); go("#/design/" + d.id); return; }
     case "swipe-delete": return deleteRecord(el.dataset.coll, el.dataset.id);
     case "piece-filter": PIECE_FILTER = el.dataset.val; render(true); return;
+    case "piece-tag": PIECE_TAG = PIECE_TAG === el.dataset.val ? null : el.dataset.val; render(true); return;
     case "piece-tab": PIECE_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
     case "costs-tab": COSTS_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
     case "fire-where": FIRE_WHERE = el.dataset.val; render(true); return;
@@ -1086,7 +1124,12 @@ document.addEventListener("click", async (e) => {
       openSheet({ kind: "photo", coll: "pieces", id: owner, pid }); return;
     }
     case "sheet-close": closeSheet(); render(true); return;
-    case "ph-cover": { const { rec: r, ph } = sheetPhoto(); r.cover = ph.id; touch(r); save(); drawSheet(); return; }
+    case "ph-cover": {
+      const { rec: r, ph } = sheetPhoto(); r.cover = ph.id; touch(r); save();
+      if (SHEET.kind === "photoMenu") { closeSheet(); render(true); } else drawSheet();
+      return;
+    }
+    case "menu-delete": { const { coll, id } = SHEET; closeSheet(); return deleteRecord(coll, id); }
     case "ph-delete": {
       if (!confirm(t("confirm.deletePhoto"))) return;
       const { rec: r, ph } = sheetPhoto();
@@ -1183,7 +1226,12 @@ document.addEventListener("click", (e) => {
 let pressTimer = null, pressedChip = null, heldJustNow = 0;
 function longPress(el) {
   pressedChip = null;
-  if (el.dataset.hold) { const [coll, id] = el.dataset.hold.split(":"); deleteRecord(coll, id); return; }
+  if (el.dataset.hold) {
+    const [coll, id] = el.dataset.hold.split(":");
+    if (coll === "photo") openSheet({ kind: "photoMenu", coll: "pieces", id: ROUTE.id, pid: id });
+    else if (DB[coll] && DB[coll][id]) openSheet({ kind: "recordMenu", coll, id });
+    return;
+  }
   const rec = recOf(el);
   if (el.dataset.act === "shape") {
     const sh = DB.shapes[el.dataset.val];
@@ -1268,6 +1316,18 @@ async function onUpload(input) {
   if (!files.length) return;
   const target = input.dataset.upload;
   try {
+    if (target === "replace") {   // same place in the list, same stage and tags, cover stays the cover
+      const { rec: r0, ph: old } = sheetPhoto();
+      if (!old) return;
+      const ph = await Photos.fromFile(files[0], { stage: old.stage, tags: [...(old.tags || [])] });
+      if (old.at) ph.at = old.at;
+      const r = DB.pieces[r0.id] || r0;
+      r.photos = (r.photos || []).map((x) => x.id === old.id ? ph : x);
+      if (r.cover === old.id) r.cover = ph.id;
+      Photos.forget([old]); touch(r); save(); closeSheet(); render(true);
+      toast(t("photo.replaced"));
+      return;
+    }
     if (target === "newpiece" || target === "piece") {
       let p = target === "piece" ? DB.pieces[ROUTE.id] : newRecord("pieces", { started: today(), unit: SETTINGS.unit });
       const stage = target === "newpiece" ? "wet" : (ROUTE.addStage || stageOf(p));
@@ -1275,7 +1335,7 @@ async function onUpload(input) {
         const ph = await Photos.fromFile(f, { stage, tags: [...(p.tags || [])] });
         p = DB.pieces[p.id] || p;   // a sync may have swapped the object while the photo was being saved
         p.photos = [...(p.photos || []), ph];
-        if (!p.cover || stage === "final") p.cover = ph.id;
+        if (!p.cover || stage === "glazed") p.cover = ph.id;
       }
       DB.pieces[p.id] = p;
       touch(p); save();
@@ -1339,7 +1399,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "22";
+const APP_VERSION = "23";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });

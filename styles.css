@@ -349,3 +349,33 @@ img.missing { background: repeating-linear-gradient(45deg, var(--soft), var(--so
 }
 .editor { padding-bottom: 24px; }
 .editor > .btn.danger { width: calc(100% - 40px); margin: 16px 20px 0; }
+
+/* Holding a photo or a tile opens a menu, so the phone's own image/link menu must stay out of the way. */
+img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.menu-head { display: flex; align-items: center; gap: 12px; margin: 2px 40px 14px 0; font-weight: 550; min-width: 0; }
+.menu-head span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-img { width: 64px; height: 64px; border-radius: 10px; flex: none; }
+.menu { display: flex; flex-direction: column; gap: 8px; }
+.menu .btn { justify-content: center; margin: 0; }
+
+/* the category tags under the stage words on Pieces */
+.tagfilter { gap: 5px; }
+.tagfilter .chip { min-height: 28px; padding: 0 10px; font-size: 13px; border-radius: 999px; }
+
+/* Firings and orders: every one is its own box on the page background. */
+.cards.boxes { background: none; border: 0; padding: 0; gap: 10px; }
+.cards.boxes .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-height: 72px; }
+.cards.boxes .card:last-child { border-bottom: 1px solid var(--line); }
+.cards.boxes .swipe { border-radius: 12px; }
+.cards.boxes .swipe-del { top: 0; bottom: 0; }
+.card.firing { align-items: stretch; padding: 10px 10px 10px 14px; }
+.card.firing .card-body { align-self: center; }
+.card.firing .card-title { white-space: normal; }
+.fphotos { display: grid; grid-template-columns: 84px; grid-auto-flow: column; grid-template-rows: 40px 40px; gap: 4px; flex: none; }
+.fphotos.two { grid-template-columns: 84px 84px; }
+.fphotos.more { grid-template-columns: 84px 40px; }
+.fphotos > * { position: relative; border-radius: 8px; overflow: hidden; }
+.fphotos > :first-child { grid-row: span 2; }
+.fphotos.two > * { grid-row: span 2; }
+.fphotos img, .fphotos .ph-empty { width: 100%; height: 100%; }
+.fphotos i { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; font-size: 13px; font-weight: 600; color: #fff; background: rgba(20, 16, 12, .5); }
