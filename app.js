@@ -85,11 +85,24 @@ function calc(p) {
     shrinkFavg: avgText(shrink(from, p.final, keys)),
     shrinkHB: shrinkText(shrink(handleOf(p.wet), handleOf(p.bisque))),
     shrinkHF: shrinkText(shrink(handleOf(p.wet), handleOf(p.final))),
+    ...glazeFigures(p),
     lossB: lossText(p, p.bisque),
     lossF: lossText(p, p.final),
     expect: expectText(p, keys),
     costTotal: cost.total ? money(cost.total) : "–",
     stage: t("stage." + stageOf(p))
+  };
+}
+function glazeFigures(p) {
+  const gc = glazeCalc(p), nz = (v, f) => v == null ? "–" : f(v);
+  const src = gc.size ? t("glz.from." + gc.size.stage, { dims: gc.size.dims }) : t("glz.noSize");
+  return {
+    gArea: nz(gc.areaEst, (v) => fmt(v, 0)),
+    gMl: nz(gc.mlEst, (v) => fmt(v, 0)),
+    gPerL: nz(gc.rateEst, (v) => (v * 1000).toFixed(2)),
+    gCost: nz(gc.costEst, (v) => v.toFixed(2)),
+    gTotal: gc.cost == null ? "–" : money(gc.cost),
+    gNote: src
   };
 }
 /** Weight lost since the piece was made: from the trimmed weight when there is one, else as thrown. */
@@ -123,6 +136,20 @@ function expectText(p, keys) {
   if (!e) return "–";
   return `${e.keys.map((f) => `${f.label} ${fmt(e[f.key])}`).join(" · ")} ${p.unit || SETTINGS.unit} · ${t("expect.count", { n: e.n })}`;
 }
+/** The glaze cost on the Glazed tab. Empty boxes show the estimate; typing in one uses your number instead. */
+function glazeBlock(p, c) {
+  const g = p.glaze || {};
+  const ph = (key, path, val) => numIn(path, val, c[key] === "–" ? "" : c[key]).replace("<input ", `<input data-calc-ph="${key}" `);
+  return `<div class="sub glz"><div class="sub-body">
+    <div class="glz-head"><b>${t("glz.title")}</b><b data-calc="gTotal">${esc(c.gTotal)}</b></div>
+    <p class="meta" data-calc="gNote">${esc(c.gNote)}</p>
+    <div class="grid2">${field(t("glz.area"), ph("gArea", "glaze.area", g.area))}${field(t("glz.coats"), numIn("glaze.coats", g.coats, String(GLAZE_COATS)))}</div>
+    <div class="grid2">${field(t("cost.glazeUsed"), ph("gMl", "glaze.grams", g.grams))}${field(`${t("glz.perL")} (${esc(SETTINGS.currency)})`, ph("gPerL", "glaze.perL", g.perL))}</div>
+    ${field(`${t("glz.cost")} (${esc(SETTINGS.currency)})`, ph("gCost", "glaze.cost", g.cost))}
+    ${field(t("glz.coverage"), `<input type="number" inputmode="decimal" step="any" data-setting="glazeCoverage" value="${esc(coverage())}">`)}
+    <p class="meta">${t("glz.hint")}</p>
+  </div></div>`;
+}
 /** A computed figure that stays in the page and shows itself as soon as there's something to show. */
 function calcRow(key, lbl, c) {
   return `<div class="calc"${c[key] === "–" ? " hidden" : ""}><span>${esc(lbl)}</span><b data-calc="${key}">${esc(c[key])}</b></div>`;
@@ -145,6 +172,17 @@ function orderLines(b) {
     const share = !fee ? 0 : goods > 0 ? fee * (cost / goods) : fee / items.length;
     return { kind: x.kind || "clay", name: x.name, grams: has(x.grams) ? Number(x.grams) : 0, cost, share, total: cost + share };
   });
+}
+/** How a rate per gram (clay) or per ml (glaze) is shown: per kg, or per litre. */
+const rateText = (kind, perUnit) => `${money(perUnit * 1000)} ${t(kind === "glaze" ? "unit.perL" : "unit.perKg")}`;
+const amountText = (kind, n) => kind === "glaze" ? `${fmt(n, 0)} ml` : `${fmt(n / 1000, 2)} kg`;
+/** Every order line that makes up a material's rate. */
+function rateSources(kind, name) {
+  const out = [];
+  for (const b of Object.values(DB.purchases).sort((a, c) => (a.date || "").localeCompare(c.date || ""))) {
+    for (const l of orderLines(b)) if (l.kind === kind && l.name === name && l.grams) out.push({ b, l });
+  }
+  return out;
 }
 /** The most recent order, at one shop if given. */
 function lastOrder(store, except) {
@@ -198,10 +236,66 @@ function firingShare(fid, p) {
   const fee = byWeight(f) ? n0(f.perKg) * n0(w) / 1000 : n0(f.fee) / n;
   return { fee, travel: faresOf(f) / n, n, w, weighed: !byWeight(f) || has(w) };
 }
+/* Glaze is estimated from the piece's size: the surface inside and out, three coats on every
+ * surface, at a set amount of glaze per coat. Every step can be typed over on the Glazed tab. */
+const GLAZE_COATS = 3;
+const coverage = () => has(SETTINGS.glazeCoverage) && Number(SETTINGS.glazeCoverage) > 0 ? Number(SETTINGS.glazeCoverage) : 2;   // ml per coat for each 100 cm²
+const toCm = (v, unit) => unit === "mm" ? v / 10 : unit === "in" ? v * 2.54 : v;
+/** Surface to glaze in cm², inside and outside, from the shape's measurements. Null for a shape of your own. */
+function surfaceArea(shape, get) {
+  const P = Math.PI, v = (k) => has(get(k)) ? Number(get(k)) : null;
+  const d = v("dia"), h = v("h");
+  switch (shape) {
+    case "mug": return d && h ? 2 * (P * d * h + P * (d / 2) ** 2) : null;
+    case "bowl": { const dp = v("depth"); return d && dp ? 2 * P * ((d / 2) ** 2 + dp ** 2) : null; }
+    case "plate": return d ? 2 * P * (d / 2) ** 2 + P * d * (h || 0) : null;
+    case "vase": return d && h ? 2 * P * d * h + P * (d / 2) ** 2 : null;
+    case "box": case "irregular": {
+      const l = v(shape === "box" ? "l" : "long"), w = v(shape === "box" ? "w" : "short");
+      return l && w && h ? 2 * (2 * (l + w) * h + l * w) : null;
+    }
+  }
+  return null;
+}
+/** Glaze goes on a bisqued piece, so its bisque size is the one to measure; else the nearest there is. */
+function glazeSize(p) {
+  const keys = shapeFields(p), unit = p.unit || SETTINGS.unit, shape = SHAPES[p.shape || "box"] ? (p.shape || "box") : null;
+  for (const [stage, o] of [["bisque", p.bisque], ["glazed", p.final], ["trim", p.trim], ["wet", p.wet]]) {
+    if (!shape || !hasDims(o, keys)) continue;
+    const a = surfaceArea(shape, (k) => { const x = mget(o, k); return has(x) ? toCm(Number(x), unit) : null; });
+    if (a) return { area: a, stage, dims: keys.filter((f) => has(mget(o, f.key))).map((f) => `${f.label} ${fmt(mget(o, f.key))}`).join(" × ") + " " + unit };
+  }
+  return null;
+}
+/** Price of glaze per ml: the glazes on this piece, else every glaze you've bought. */
+function glazeRate(p) {
+  const chosen = ((p.glaze || {}).glazes || []).map((x) => rateFor("glaze", x)).filter((x) => x != null);
+  if (chosen.length) return { rate: chosen.reduce((a, b) => a + b, 0) / chosen.length, from: "chosen" };
+  let ml = 0, c = 0;
+  for (const b of Object.values(DB.purchases)) for (const l of orderLines(b)) if (l.kind === "glaze" && l.grams) { ml += l.grams; c += l.total; }
+  return ml ? { rate: c / ml, from: "all" } : null;
+}
+const isGlazed = (p) => stageOf(p) === "glazed" || ((p.glaze || {}).glazes || []).length > 0 || !!(p.glaze || {}).firingId;
+/** Every step of the glaze sum, each one either estimated or typed in. */
+function glazeCalc(p) {
+  const g = p.glaze || {}, size = glazeSize(p), r = glazeRate(p);
+  const out = { active: isGlazed(p) || has(g.cost), size, coverage: coverage() };
+  out.areaEst = size ? size.area : null;
+  out.area = has(g.area) ? Number(g.area) : out.areaEst;
+  out.coats = has(g.coats) ? Number(g.coats) : GLAZE_COATS;
+  out.mlEst = out.area != null ? out.area / 100 * out.coats * out.coverage : null;
+  out.ml = has(g.grams) ? Number(g.grams) : out.mlEst;          // "grams" holds the ml of glaze used
+  out.rateEst = r ? r.rate : null; out.rateFrom = r ? r.from : null;
+  out.rate = has(g.perL) ? Number(g.perL) / 1000 : out.rateEst;
+  out.costEst = out.ml != null && out.rate != null ? out.ml * out.rate : null;
+  out.cost = has(g.cost) ? Number(g.cost) : out.costEst;
+  out.typed = { area: has(g.area), coats: has(g.coats), ml: has(g.grams), rate: has(g.perL), cost: has(g.cost) };
+  return out;
+}
 /** Which weight clay is charged on: all the clay used, or only what's left after trimming (the trimmings get reclaimed). */
 const clayBasis = () => SETTINGS.clayBasis === "trim" ? "trim" : "wet";
 function pieceCost(p) {
-  const out = { clay: 0, clayG: 0, clayBasis: clayBasis(), glaze: 0, firing: 0, travel: 0, other: 0, missing: [] };
+  const out = { clay: 0, clayG: 0, clayBasis: clayBasis(), glaze: 0, firing: 0, travel: 0, other: 0, missing: [], clayLines: [], glazeLine: null, fires: [] };
   const typed = (p.clay || []).filter((row) => row.type);
   const rowG = typed.reduce((a, row) => a + n0(row.g), 0);
   // the mix of clays, and how many grams of wet clay went in
@@ -210,22 +304,24 @@ function pieceCost(p) {
   const wetG = rowG > 0 ? rowG : n0((p.wet || {}).weight);
   if (out.clayBasis === "trim" && !has(trimWeight(p))) out.clayBasis = "wet";   // not trimmed yet: fall back to the wet clay
   out.clayG = out.clayBasis === "trim" ? Number(trimWeight(p)) : wetG;
+  out.wetG = wetG;
   if (!mix.length && out.clayG) out.missing.push(t("cost.noClayType"));
   for (const m of mix) {
     const r = rateFor("clay", m.type);
     if (r == null) { out.missing.push(label("clay", m.type)); continue; }
     out.clay += r * out.clayG * m.share;
+    out.clayLines.push({ type: m.type, grams: out.clayG * m.share, rate: r, cost: r * out.clayG * m.share });
   }
-  const g = p.glaze || {};
-  if (has(g.grams) && (g.glazes || []).length) {
-    const rates = g.glazes.map((x) => rateFor("glaze", x)).filter((x) => x != null);
-    if (!rates.length) out.missing.push(...g.glazes);
-    else out.glaze += (rates.reduce((a, b) => a + b, 0) / rates.length) * Number(g.grams);
+  const gc = glazeCalc(p);
+  if (gc.active) {
+    if (gc.cost != null) { out.glaze = gc.cost; out.glazeLine = gc; }
+    else out.missing.push(t(gc.ml == null ? "glz.needSize" : "glz.needPrice"));
   }
   for (const key of ["bisque", "glaze"]) {
     const fid = p[key] && p[key].firingId;
     if (!fid) continue;
     const sh = firingShare(fid, p);
+    out.fires.push(Object.assign({ fid, f: DB.firings[fid] }, sh));
     out.firing += sh.fee; out.travel += sh.travel;
     if (!sh.weighed) out.missing.push(t("cost.noWeight"));
   }
@@ -291,7 +387,10 @@ function chips(group, values, selected, labelFn, opts = {}) {
   return `<div class="chips">${values.map((v) => `<button type="button" class="chip${opts.cls ? " " + opts.cls + "-" + esc(v) : ""}" data-act="chip" data-group="${esc(group)}" data-val="${esc(v)}"${opts.single ? " data-single" : ""}${from} aria-pressed="${sel.includes(v)}">${esc(labelFn(v))}</button>`).join("")}${opts.add ? `<button type="button" class="chip add" data-act="list-add" data-list="${opts.add}" data-group="${esc(group)}">+</button>` : ""}</div>`;
 }
 function field(lbl, inner, cls = "") { return `<label class="field ${cls}"><span>${esc(lbl)}</span>${inner}</label>`; }
-function numIn(path, val, ph = "") { return `<input type="number" inputmode="decimal" step="any" data-f="${path}" data-num value="${has(val) ? esc(val) : ""}" placeholder="${esc(ph)}">`; }
+function numIn(path, val, ph = "", scale) {
+  const shown = has(val) ? (scale ? Math.round(val / scale * 1e6) / 1e6 : val) : "";
+  return `<input type="number" inputmode="decimal" step="any" data-f="${path}" data-num${scale ? ` data-scale="${scale}"` : ""} value="${esc(shown)}" placeholder="${esc(ph)}">`;
+}
 function textIn(path, val, ph = "", list = "") { return `<input type="text" data-f="${path}" value="${esc(val || "")}" placeholder="${esc(ph)}"${list ? ` list="${list}"` : ""}>`; }
 function dateIn(path, val) { return `<input type="date" data-f="${path}" value="${esc(val || "")}">`; }
 function area(path, val, ph = "") { return `<textarea data-f="${path}" rows="3" placeholder="${esc(ph)}">${esc(val || "")}</textarea>`; }
@@ -360,7 +459,7 @@ const go = (h) => { location.hash = h; };
 window.addEventListener("hashchange", () => { ROUTE = parseRoute(); closeSheet(); render(); window.scrollTo(0, 0); });
 
 const TABS = ["pieces", "firings", "ideas", "costs"];
-const TAB_OF = { piece: "pieces", firing: "firings", design: "ideas", insp: "ideas", settings: "more", more: "pieces", purchase: "costs" };
+const TAB_OF = { pcost: "costs", piece: "pieces", firing: "firings", design: "ideas", insp: "ideas", settings: "more", more: "pieces", purchase: "costs" };
 
 // ---------- views
 const VIEWS = {};
@@ -495,7 +594,7 @@ const TAB_BODY = {
     return `
       ${field(t("f.glazes"), chips("glaze.glazes", [...new Set([...listValues("glazes"), ...(g.glazes || [])])], g.glazes, (v) => v, { add: "glazes" }))}
       ${field(t("f.method"), chips("glaze.method", METHODS, g.method, (v) => t("method." + v)))}
-      ${field(t("cost.glazeUsed"), numIn("glaze.grams", g.grams))}
+      ${glazeBlock(p, c)}
       ${field(t("f.firing"), firingSelect("glaze.firingId", g.firingId, "glaze"))}
       <span class="lbl">${t("f.dimsFinal")} (${esc(u)})</span>
       ${dims("final", f, u, shapeFields(p))}
@@ -533,6 +632,7 @@ const TAB_BODY = {
         ${line(t("cost.other"), k.other, p.otherNote || "")}
         <div class="costrow total"><span>${t("cost.total")}</span><b data-calc="costTotal">${k.total ? esc(money(k.total)) : "–"}</b></div>
         ${k.missing.length ? `<p class="meta">${t("cost.noRate")}: ${esc([...new Set(k.missing)].join(", "))}</p>` : ""}
+        <a class="btn small ghost how" href="#/pcost/${esc(p.id)}">${t("bd.how")} ›</a>
         ${s.status === "sold" && k.total ? `<div class="costrow"><span>${t("cost.profit")}</span><b>${esc(money(salePrice(p) - k.total))}</b></div>` : ""}
       </div>
       <div class="grid2">${field(`${t("cost.other")} (${esc(SETTINGS.currency)})`, numIn("otherCost", p.otherCost))}${field(t("cost.otherNote"), textIn("otherNote", p.otherNote))}</div>
@@ -618,7 +718,7 @@ function purchaseCalc(b) {
   const lines = orderLines(b);
   (b.items || []).forEach((it, i) => {
     const l = lines.find((x) => x.name === it.name && x.kind === (it.kind || "clay"));
-    out["rate-" + i] = l && l.grams ? t("buy.rate", { rate: money(l.total / l.grams * 1000) }) : "–";
+    out["rate-" + i] = l && l.grams ? t("buy.rate", { rate: rateText(l.kind, l.total / l.grams) }) : "–";
   });
   return out;
 }
@@ -711,13 +811,84 @@ VIEWS.costs = () => {
       <div class="srow">${t("cost.sold")}<span class="v">${sold.length ? `${t("pieces.count", { n: sold.length })} · ${esc(money(sold.reduce((a, p) => a + salePrice(p), 0)))}` : "–"}</span></div>
       <div class="srow">${t("cost.forSale")}<span class="v">${forSale.length ? `${t("pieces.count", { n: forSale.length })} · ${esc(money(forSale.reduce((a, p) => a + salePrice(p), 0)))}` : "–"}</span></div>
     </div>
-    <div class="cards">${ps.map((p) => {
+    <div class="cards boxes">${ps.map((p) => {
       const k = pieceCost(p), s = p.sale || {};
-      return `<a class="card piece" href="#/piece/${esc(p.id)}">${img(coverOf(p), "thumb")}<div class="card-body">
+      return `<a class="card piece" href="#/pcost/${esc(p.id)}">${img(coverOf(p), "thumb")}<div class="card-body">
         <div class="card-title">${esc(pieceName(p))}</div>
         <div class="meta">${k.total ? esc(`${t("cost.total")} ${money(k.total)}`) : "–"}${s.status && s.status !== "not" ? esc(` · ${t("sale." + s.status)} ${money(salePrice(p))}`) : ""}</div>
       </div></a>`;
     }).join("") || empty(t("empty.pieces"))}</div>`;
+};
+
+/** The glaze sum as lines: surface × coats × glaze per coat = ml, × price = cost; typed-in numbers say so. */
+function glazeSteps(p, gc, row) {
+  const typed = (on) => on ? ` <i class="typed">${t("glz.typed")}</i>` : "";
+  const lines = [];
+  if (gc.typed.cost) return row(esc(t("glz.cost")) + typed(true), esc(money(gc.cost)));
+  if (gc.area != null) {
+    lines.push(row(esc(t("glz.area")) + typed(gc.typed.area), `${fmt(gc.area, 0)} cm²`));
+    if (!gc.typed.area && gc.size) lines.push(`<p class="meta bd-note">${esc(t("glz.from." + gc.size.stage, { dims: gc.size.dims }))}</p>`);
+  }
+  if (!gc.typed.ml && gc.area != null) lines.push(row(esc(t("glz.mlSum", { area: fmt(gc.area, 0), coats: gc.coats, cov: fmt(gc.coverage, 2) })) + typed(gc.typed.coats), `${fmt(gc.ml, 0)} ml`));
+  else lines.push(row(esc(t("cost.glazeUsed")) + typed(true), `${fmt(gc.ml, 0)} ml`));
+  const names = ((p.glaze || {}).glazes || []).join(", ");
+  lines.push(row(`${esc(fmt(gc.ml, 0))} ml × ${esc(rateText("glaze", gc.rate))}${typed(gc.typed.rate)}${!gc.typed.rate && names ? ` <i>${esc(names)}</i>` : ""}${!gc.typed.rate && gc.rateFrom === "all" ? ` <i>${t("glz.avgAll")}</i>` : ""}`, esc(money(gc.cost))));
+  return lines.join("") + `<a class="bd-link" href="#/piece/${esc(p.id)}" data-act="to-glaze">${t("glz.change")} ›</a>`;
+}
+/* How one piece's cost is worked out, step by step: the clay it used at what you paid for that
+ * clay, its share of each firing's fee, and its share of the fares there and back. */
+VIEWS.pcost = (r) => {
+  const p = DB.pieces[r.id];
+  if (!p) return null;
+  const k = pieceCost(p), s = p.sale || {};
+  const row = (a, b, cls = "") => `<div class="bd-row ${cls}"><span>${a}</span><b>${b}</b></div>`;
+  const box = (title, sum, body) => `<div class="panel bd"><div class="bd-head"><span>${esc(title)}</span><b>${esc(money(sum) || money(0))}</b></div>${body}</div>`;
+
+  // clay
+  const usedNote = k.clayBasis === "wet" ? t("bd.wetNote") : t("bd.trimNote", { off: fmt(Math.max(0, k.wetG - k.clayG), 0) });
+  let clay = `${field(t("cost.clayBy"), chips("clayBasis", ["wet", "trim"], clayBasis(), (v) => t(v === "trim" ? "cost.basisTrim" : "cost.basisWet"), { single: true }))}`;
+  clay += k.clayG ? row(esc(t("bd.clayUsed")), `${fmt(k.clayG, 0)} g`) + `<p class="meta bd-note">${esc(usedNote)}</p>` : "";
+  for (const c of k.clayLines) {
+    clay += row(`${esc(label("clay", c.type))} · ${fmt(c.grams, 0)} g × ${esc(rateText("clay", c.rate))}`, esc(money(c.cost)));
+    const src = rateSources("clay", c.type);
+    clay += `<div class="bd-src"><span class="lbl">${esc(t("bd.rateFrom", { rate: rateText("clay", c.rate) }))}</span>
+      ${src.map(({ b, l }) => `<div>${esc([b.store ? label("store", b.store) : "", dateText(b.date)].filter(Boolean).join(" · "))}: ${esc(t(l.share ? "bd.order" : "bd.orderNoDel", { amt: amountText("clay", l.grams), cost: money(l.cost), del: money(l.share) }))}</div>`).join("")}
+      ${src.length > 1 ? `<div>${esc(t("bd.avg", { cost: money(src.reduce((a, x) => a + x.l.total, 0)), amt: amountText("clay", src.reduce((a, x) => a + x.l.grams, 0)), n: src.length }))}</div>` : ""}</div>`;
+  }
+  if (!k.clayLines.length) clay += `<p class="meta">${esc(k.clayG ? [...new Set(k.missing)].join(" · ") : t("bd.noClay"))}</p>`;
+
+  // firing and the fares there and back
+  let fire = "";
+  for (const x of k.fires) {
+    const f = x.f;
+    fire += `<div class="bd-fire"><a class="bd-link" href="#/firing/${esc(x.fid)}">${esc(firingName(f))}${f.where === "studio" && f.studio ? " · " + esc(label("studio", f.studio)) : ""} ›</a>`;
+    if ((f.where || "home") !== "studio") fire += `<p class="meta">${t("bd.home")}</p>`;
+    else {
+      fire += byWeight(f)
+        ? row(esc(t("bd.feeWeight", { g: has(x.w) ? fmt(x.w, 0) : "?", rate: `${money(f.perKg)} ${t("unit.perKg")}` })), esc(money(x.fee)))
+        : row(esc(t("bd.feeSplit", { fee: money(n0(f.fee)), n: t("pieces.count", { n: x.n }) })), esc(money(x.fee)));
+      fire += row(esc(t("bd.faresSplit", { there: money(n0(f.travel)), back: money(n0(f.travelBack)), n: t("pieces.count", { n: x.n }) })), esc(money(x.travel)));
+    }
+    fire += `</div>`;
+  }
+  if (!k.fires.length) fire = `<p class="meta">${t("bd.noFiring")}</p>`;
+
+  const extra = [
+    k.glazeLine ? box(t("cost.glaze"), k.glaze, glazeSteps(p, k.glazeLine, row)) : "",
+    k.other ? box(t("cost.other"), k.other, p.otherNote ? `<p class="meta">${esc(p.otherNote)}</p>` : "") : ""
+  ].join("");
+  const sumParts = [[t("cost.clay"), k.clay], [t("cost.firing"), k.firing], [t("bd.fares"), k.travel], [t("cost.glaze"), k.glaze], [t("cost.other"), k.other]].filter(([, v], i) => i < 3 || v);
+  return `<div class="editor">
+    <a class="bd-top" href="#/piece/${esc(p.id)}">${img(coverOf(p), "thumb")}<span><b>${esc(pieceName(p))}</b><i>${t("bd.open")} ›</i></span></a>
+    ${box(t("cost.clay"), k.clay, clay)}
+    ${box(t("bd.fireTitle"), k.firing + k.travel, fire)}
+    ${extra}
+    <div class="panel bd total">
+      ${sumParts.map(([a, v]) => row(esc(a), esc(money(v)))).join("")}
+      ${row(esc(t("cost.total")), esc(money(k.total)), "sum")}
+      ${s.status === "sold" || s.status === "for" ? row(esc(t(s.status === "sold" ? "f.salePrice" : "f.askPrice")), esc(money(salePrice(p)))) + row(esc(t("cost.profit")), esc(money(salePrice(p) - k.total)), "sum") : ""}
+    </div>
+  </div>`;
 };
 
 VIEWS.purchase = (r) => {
@@ -734,7 +905,7 @@ VIEWS.purchase = (r) => {
         <button class="icon-btn" data-act="item-del" data-i="${i}" aria-label="${t("btn.delete")}">${ICON.x}</button>
       </div>
       <div class="item-num">
-        <label><span>${t("buy.amount")}</span>${numIn(`items.${i}.grams`, it.grams)}</label>
+        <label><span>${t(kind === "glaze" ? "buy.amountMl" : "buy.amountKg")}</span>${kind === "glaze" ? numIn(`items.${i}.grams`, it.grams) : numIn(`items.${i}.grams`, it.grams, "", 1000)}</label>
         <label><span>${t("buy.cost")} (${esc(SETTINGS.currency)})</span>${numIn(`items.${i}.cost`, it.cost)}</label>
       </div>
       <div class="meta rate"${pc["rate-" + i] === "–" ? " hidden" : ""} data-calc="rate-${i}">${esc(pc["rate-" + i])}</div>
@@ -870,6 +1041,7 @@ function detailTitle() {
   if (r.name === "insp") return t("ideas.insp");
   if (r.name === "more" || r.name === "settings") return t("tab.settings");
   if (r.name === "purchase") return t("buy.order");
+  if (r.name === "pcost") return t("bd.title");
   return "";
 }
 function hydrate(root) {
@@ -899,6 +1071,7 @@ function updateCalcs(rec) {
     const row = el.closest(".calc") || (el.classList.contains("rate") ? el : null);
     if (row) row.hidden = v === "–" || v === "";
   });
+  $$("[data-calc-ph]").forEach((el) => { const v = c[el.dataset.calcPh]; if (v !== undefined) el.placeholder = v === "–" ? "" : v; });
   if (ROUTE.name === "piece" && document.activeElement && document.activeElement.dataset.f === "title") $("#title").textContent = pieceName(rec);
 }
 let pendingRender = false;
@@ -1013,6 +1186,7 @@ document.addEventListener("input", (e) => {
   if (!rec) return;
   let v = el.value;
   if (el.dataset.num !== undefined) v = num(v);
+  if (el.dataset.scale && v != null) v = Math.round(v * Number(el.dataset.scale) * 1000) / 1000;
   if (el.dataset.f === "sale.channel") v = channelKey(v);
   setPath(rec, el.dataset.f, v);
   changed(rec, false);
@@ -1028,6 +1202,7 @@ document.addEventListener("change", (e) => {
   const el = e.target;
   if (el.dataset.upload) return onUpload(el);
   if (el.dataset.import !== undefined) return onImport(el);
+  if (el.dataset.setting === "glazeCoverage") { SETTINGS.glazeCoverage = num(el.value); saveSettings(); render(true); return; }
   if (el.dataset.setting) { SETTINGS[el.dataset.setting] = el.value.trim() || (el.dataset.setting === "currency" ? "£" : "cm"); saveSettings(); return; }
   if (el.dataset.gf) { SETTINGS.galleryFilters[el.dataset.gf] = el.value || null; saveSettings(); render(true); return; }
   if (el.dataset.ph) { const { rec, ph } = sheetPhoto(); if (ph) { ph[el.dataset.ph] = el.value; changed(rec, false); } return; }
@@ -1087,6 +1262,7 @@ document.addEventListener("click", async (e) => {
     case "piece-filter": PIECE_FILTER = el.dataset.val; render(true); return;
     case "piece-tag": PIECE_TAG = PIECE_TAG === el.dataset.val ? null : el.dataset.val; render(true); return;
     case "piece-tab": PIECE_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
+    case "to-glaze": { const id = ROUTE.id; PIECE_TAB_FOR = id; PIECE_TAB = "glaze"; return; }   // the link carries on to the piece
     case "costs-tab": COSTS_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
     case "fire-where": FIRE_WHERE = el.dataset.val; render(true); return;
     case "new-purchase": {   // most orders repeat the last one, so start from a copy of it
@@ -1399,7 +1575,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "23";
+const APP_VERSION = "24";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
