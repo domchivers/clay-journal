@@ -59,6 +59,11 @@ function stageOf(p) {
   if (any(p.glaze, ["glazes", "method", "firingId", "grams"])) i = 2;
   if (hasDims(p.final, keys) || any(p.final, ["weight", "outcome"]) || hasHandle(p.final)) i = 2;
   for (const ph of p.photos || []) i = Math.max(i, STAGES.indexOf(ph.stage === "final" ? "glazed" : ph.stage));
+  for (const tr of Object.values(DB.trips)) for (const x of tr.items || []) {   // back from a bisque firing, or sent for a glaze one
+    if (x.pieceId !== p.id) continue;
+    if (tr.kind === "collect") i = Math.max(i, x.firing === "glaze" ? 2 : 1);
+    else if (x.firing === "glaze") i = Math.max(i, 1);
+  }
   return STAGES[i];
 }
 function shrink(from, to, keys) {
@@ -150,6 +155,14 @@ function glazeBlock(p, c) {
     <p class="meta">${t("glz.hint")}</p>
   </div></div>`;
 }
+/** Where this piece went for this firing: dropped off, collected or still at the studio. */
+function tripHistory(p, type) {
+  const h = pieceTrips(p, type);
+  if (!h.length) return "";
+  return `<div class="hist">${h.map((x) => `<div class="hist-row">
+    <a href="#/trip/${esc(x.drop.id)}">${esc(t("hist.dropped", { date: dateText(x.drop.date) }))}${x.drop.studio ? " · " + esc(label("studio", x.drop.studio)) : ""}${x.cone ? " · " + esc(x.cone) : ""}</a>
+    ${x.back ? `<a href="#/trip/${esc(x.back.id)}">${esc(t("hist.collected", { date: dateText(x.back.date) }))}</a>` : `<i>${t("hist.waiting")}</i>`}</div>`).join("")}</div>`;
+}
 /** A computed figure that stays in the page and shows itself as soon as there's something to show. */
 function calcRow(key, lbl, c) {
   return `<div class="calc"${c[key] === "–" ? " hidden" : ""}><span>${esc(lbl)}</span><b data-calc="${key}">${esc(c[key])}</b></div>`;
@@ -236,6 +249,86 @@ function firingShare(fid, p) {
   const fee = byWeight(f) ? n0(f.perKg) * n0(w) / 1000 : n0(f.fee) / n;
   return { fee, travel: faresOf(f) / n, n, w, weighed: !byWeight(f) || has(w) };
 }
+/* ---------- the studio: drop-offs and collections
+ * A drop-off takes pieces for a bisque or a glaze firing (each group with its cone) and carries the
+ * firing fee and the fare there. A collection brings pieces home, from any drop-offs, and carries
+ * the fare back. A studio's prices are kept once, per kg, per piece or per cm of height, and fill
+ * in the fee; typing what was actually paid shares that out instead. */
+const TRIP_TYPES = ["bisque", "glaze"];
+const PRICE_BY = ["kg", "piece", "cm"];
+const tripsSorted = () => Object.values(DB.trips).sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt);
+const studioOf = (name) => name ? Object.values(DB.studios).find((x) => x.name === name) || null : null;
+/** The price a studio charges for a type of firing, or null when it hasn't been set. */
+function studioPrice(name, type) {
+  const x = (studioOf(name) || {})[type];
+  return x && has(x.price) ? { by: PRICE_BY.includes(x.by) ? x.by : "kg", price: Number(x.price) } : null;
+}
+/** What a piece weighed going in: bone dry (trimmed) for a bisque firing, its bisque weight for a glaze one. */
+function weightFor(p, type) {
+  const order = type === "bisque" ? [trimWeight(p), (p.wet || {}).weight, (p.bisque || {}).weight]
+    : [(p.bisque || {}).weight, (p.final || {}).weight, trimWeight(p), (p.wet || {}).weight];
+  const w = order.find(has);
+  return w == null ? null : Number(w);
+}
+/** Its height going in, in cm, for studios that charge by height. */
+function heightFor(p, type) {
+  const unit = p.unit || SETTINGS.unit;
+  const order = type === "bisque" ? [p.trim, p.wet, p.bisque] : [p.bisque, p.final, p.trim, p.wet];
+  for (const o of order) { const h = mget(o, "h"); if (has(h)) return toCm(Number(h), unit); }
+  return null;
+}
+const liveItems = (tr) => (tr.items || []).filter((x) => DB.pieces[x.pieceId]);
+/** Everything dropped off and not collected yet, oldest first. */
+function atStudio(studio) {
+  const back = new Set();
+  for (const tr of Object.values(DB.trips)) if (tr.kind === "collect") for (const x of tr.items || []) back.add(x.dropId + "|" + x.pieceId);
+  const out = [];
+  for (const tr of tripsSorted().reverse()) {
+    if (tr.kind !== "drop" || (studio && tr.studio !== studio)) continue;
+    for (const x of liveItems(tr)) if (!back.has(tr.id + "|" + x.pieceId)) out.push({ drop: tr, item: x, p: DB.pieces[x.pieceId] });
+  }
+  return out;
+}
+/** Each piece's line on a trip: what it measured, and its firing fee (drop-offs only). */
+function tripFees(tr) {
+  const rows = liveItems(tr).map((x) => {
+    const p = DB.pieces[x.pieceId], type = x.firing === "glaze" ? "glaze" : "bisque";
+    const pr = (tr.prices && tr.prices[type] && has(tr.prices[type].price)) ? { by: tr.prices[type].by, price: Number(tr.prices[type].price) } : studioPrice(tr.studio, type);
+    const w = weightFor(p, type), h = heightFor(p, type);
+    const base = !pr ? null : pr.by === "piece" ? pr.price : pr.by === "cm" ? (h == null ? null : pr.price * h) : (w == null ? null : pr.price * w / 1000);
+    return { x, p, type, pr, w, h, base, fee: 0, how: "none" };
+  });
+  if (tr.kind !== "drop") return rows;
+  if (has(tr.feePaid)) {   // what was actually paid, shared in proportion to the price list, else equally or by weight
+    const parts = rows.length && rows.every((r) => r.base > 0) ? rows.map((r) => r.base) : tr.split === "weight" ? rows.map((r) => n0(r.w)) : rows.map(() => 1);
+    const sum = parts.reduce((a, b) => a + b, 0);
+    rows.forEach((r, i) => { r.fee = sum ? Number(tr.feePaid) * parts[i] / sum : 0; r.how = "share"; });
+  } else rows.forEach((r) => { r.fee = n0(r.base); r.how = r.pr ? (r.base == null ? "missing" : r.pr.by) : "none"; });
+  return rows;
+}
+const tripFeeTotal = (tr) => tripFees(tr).reduce((a, r) => a + r.fee, 0);
+const tripsWith = (pid) => tripsSorted().filter((tr) => (tr.items || []).some((x) => x.pieceId === pid));
+const tripName = (tr) => `${dateText(tr.date, true)} · ${t(tr.kind === "drop" ? "trip.drop" : "trip.collect")}${tr.studio ? " · " + label("studio", tr.studio) : ""}`;
+/** The cones typed before, most used first, for one type of firing. */
+function conesUsed(type) {
+  const n = {};
+  for (const tr of Object.values(DB.trips)) { const c = ((tr.cone || {})[type] || "").trim(); if (c) n[c] = (n[c] || 0) + 1; }
+  for (const f of Object.values(DB.firings)) if ((f.type === "bisque") === (type === "bisque") && f.cone) n[f.cone] = (n[f.cone] || 0) + 1;
+  return Object.keys(n).sort((a, b) => n[b] - n[a]);
+}
+/** Where a piece has been for one type of firing: dropped off, and collected or still there. */
+function pieceTrips(p, type) {
+  const out = [];
+  for (const tr of tripsSorted().reverse()) {
+    if (tr.kind !== "drop") continue;
+    const x = (tr.items || []).find((i) => i.pieceId === p.id && (i.firing === "glaze" ? "glaze" : "bisque") === type);
+    if (!x) continue;
+    const back = Object.values(DB.trips).find((c) => c.kind === "collect" && (c.items || []).some((i) => i.dropId === tr.id && i.pieceId === p.id));
+    out.push({ drop: tr, back, cone: (tr.cone || {})[type] });
+  }
+  return out;
+}
+
 /* Glaze is estimated from the piece's size: the surface inside and out, three coats on every
  * surface, at a set amount of glaze per coat. Every step can be typed over on the Glazed tab. */
 const GLAZE_COATS = 3;
@@ -295,7 +388,7 @@ function glazeCalc(p) {
 /** Which weight clay is charged on: all the clay used, or only what's left after trimming (the trimmings get reclaimed). */
 const clayBasis = () => SETTINGS.clayBasis === "trim" ? "trim" : "wet";
 function pieceCost(p) {
-  const out = { clay: 0, clayG: 0, clayBasis: clayBasis(), glaze: 0, firing: 0, travel: 0, other: 0, missing: [], clayLines: [], glazeLine: null, fires: [] };
+  const out = { clay: 0, clayG: 0, clayBasis: clayBasis(), glaze: 0, firing: 0, travel: 0, other: 0, missing: [], clayLines: [], glazeLine: null, fires: [], trips: [] };
   const typed = (p.clay || []).filter((row) => row.type);
   const rowG = typed.reduce((a, row) => a + n0(row.g), 0);
   // the mix of clays, and how many grams of wet clay went in
@@ -324,6 +417,15 @@ function pieceCost(p) {
     out.fires.push(Object.assign({ fid, f: DB.firings[fid] }, sh));
     out.firing += sh.fee; out.travel += sh.travel;
     if (!sh.weighed) out.missing.push(t("cost.noWeight"));
+  }
+  for (const tr of tripsWith(p.id)) {
+    const rows = tripFees(tr), r = rows.find((x) => x.p.id === p.id);
+    if (!r) continue;
+    const fare = n0(tr.fare) / (rows.length || 1);
+    out.firing += r.fee; out.travel += fare;
+    out.trips.push({ tr, row: r, fare, n: rows.length });
+    if (r.how === "missing") out.missing.push(t(r.pr.by === "cm" ? "trip.needHeight" : "cost.noWeight"));
+    if (r.how === "none" && tr.kind === "drop") out.missing.push(t("trip.needPrice", { studio: tr.studio ? label("studio", tr.studio) : t("fire.studio") }));
   }
   if (has(p.otherCost)) out.other += Number(p.otherCost);
   out.total = out.clay + out.glaze + out.firing + out.travel + out.other;
@@ -459,7 +561,7 @@ const go = (h) => { location.hash = h; };
 window.addEventListener("hashchange", () => { ROUTE = parseRoute(); closeSheet(); render(); window.scrollTo(0, 0); });
 
 const TABS = ["pieces", "firings", "ideas", "costs"];
-const TAB_OF = { pcost: "costs", piece: "pieces", firing: "firings", design: "ideas", insp: "ideas", settings: "more", more: "pieces", purchase: "costs" };
+const TAB_OF = { trip: "firings", studio: "firings", pcost: "costs", piece: "pieces", firing: "firings", design: "ideas", insp: "ideas", settings: "more", more: "pieces", purchase: "costs" };
 
 // ---------- views
 const VIEWS = {};
@@ -587,7 +689,8 @@ const TAB_BODY = {
       ${handleBlock("bisque", b, u, false, c)}
       ${field(t("f.weightBisque"), numIn("bisque.weight", b.weight))}
       ${calcRow("lossB", t("f.lossBisque"), c)}
-      ${field(t("f.firing"), firingSelect("bisque.firingId", b.firingId, "bisque"))}`;
+      ${tripHistory(p, "bisque")}
+      ${field(t("f.homeFiring"), firingSelect("bisque.firingId", b.firingId, "bisque"))}`;
   },
   glaze(p, c, u) {
     const g = p.glaze || {}, f = p.final || {};
@@ -595,7 +698,8 @@ const TAB_BODY = {
       ${field(t("f.glazes"), chips("glaze.glazes", [...new Set([...listValues("glazes"), ...(g.glazes || [])])], g.glazes, (v) => v, { add: "glazes" }))}
       ${field(t("f.method"), chips("glaze.method", METHODS, g.method, (v) => t("method." + v)))}
       ${glazeBlock(p, c)}
-      ${field(t("f.firing"), firingSelect("glaze.firingId", g.firingId, "glaze"))}
+      ${tripHistory(p, "glaze")}
+      ${field(t("f.homeFiring"), firingSelect("glaze.firingId", g.firingId, "glaze"))}
       <span class="lbl">${t("f.dimsFinal")} (${esc(u)})</span>
       ${dims("final", f, u, shapeFields(p))}
       ${calcRow("shrinkF", t("f.shrinkFinal"), c)}
@@ -645,20 +749,110 @@ const TAB_BODY = {
 };
 
 
-let FIRE_WHERE = "all";
+let FIRE_WHERE = "studio";
 VIEWS.firings = () => {
-  const all = Object.values(DB.firings).sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt);
-  const fs = all.filter((f) => FIRE_WHERE === "all" || (f.where || "home") === FIRE_WHERE);
-  return `<div class="toolbar"><div class="wordtabs">${["all", "studio", "home"].map((w) => `<button data-act="fire-where" data-val="${w}" aria-pressed="${FIRE_WHERE === w}">${w === "all" ? t("fire.all") : t("fire." + w)}</button>`).join("")}</div></div>
-  <div class="cards boxes">${fs.map((f) => {
-    const ps = piecesInFiring(f.id);
-    return swipeable(`<a class="card firing" href="#/firing/${esc(f.id)}">
-      <div class="card-body"><div class="card-title">${esc(dateText(f.date, true))} · ${esc(label("ftype", f.type))}</div>
-      <div class="meta">${esc([(f.where || "home") === "studio" ? (f.studio ? label("studio", f.studio) : t("fire.studio")) : t("fire.home"), f.cone, t("pieces.count", { n: ps.length }),
-        firingTotal(f) ? money(firingTotal(f)) : ""].filter(Boolean).join(" · "))}</div></div>
-      ${firingPhotos(ps)}</a>`, "firings", f.id);
-  }).join("") || empty(t("empty.firings"))}</div>
-  <div class="fab"><button class="btn primary" data-act="new-firing">${ICON.plus} ${t("btn.newFiring")}</button></div>`;
+  const where = FIRE_WHERE === "home" ? "home" : "studio";
+  const words = `<div class="toolbar"><div class="wordtabs">${["studio", "home"].map((w) => `<button data-act="fire-where" data-val="${w}" aria-pressed="${where === w}">${t("fire.tab." + w)}</button>`).join("")}</div></div>`;
+  if (where === "home") {
+    const fs = Object.values(DB.firings).sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt);
+    return `${words}<div class="cards boxes">${fs.map((f) => {
+      const ps = piecesInFiring(f.id);
+      return swipeable(`<a class="card firing" href="#/firing/${esc(f.id)}">
+        <div class="card-body"><div class="card-title">${esc(dateText(f.date, true))} · ${esc(label("ftype", f.type))}</div>
+        <div class="meta">${esc([f.cone, t("pieces.count", { n: ps.length })].filter(Boolean).join(" · "))}</div></div>
+        ${firingPhotos(ps)}</a>`, "firings", f.id);
+    }).join("") || empty(t("empty.firings"))}</div>
+    <div class="fab"><button class="btn primary" data-act="new-firing">${ICON.plus} ${t("btn.newFiring")}</button></div>`;
+  }
+  const waiting = atStudio();
+  return `${words}
+    ${waiting.length ? `<div class="panel waiting"><div class="row between"><b>${t("trip.atStudio")} (${waiting.length})</b><button class="btn small" data-act="new-collect">${t("trip.newCollect")}</button></div>
+      <div class="wait-list">${waiting.map((w) => `<a class="wait" href="#/piece/${esc(w.p.id)}">${img(coverOf(w.p), "thumb")}<span><b>${esc(pieceName(w.p))}</b>
+        <i>${esc([label("ftype", w.item.firing === "glaze" ? "glaze" : "bisque"), t("trip.since", { date: dateText(w.drop.date) }), w.drop.studio ? label("studio", w.drop.studio) : ""].filter(Boolean).join(" · "))}</i></span></a>`).join("")}</div></div>` : ""}
+    <div class="cards boxes">${tripsSorted().map(tripCard).join("") || empty(t("empty.trips"))}</div>
+    <div class="fab"><button class="btn" data-act="new-collect">${t("trip.newCollect")}</button><button class="btn primary" data-act="new-drop">${ICON.plus} ${t("trip.newDrop")}</button></div>`;
+};
+function tripCard(tr) {
+  const items = liveItems(tr), cost = (tr.kind === "drop" ? tripFeeTotal(tr) : 0) + n0(tr.fare);
+  const what = tr.kind === "drop"
+    ? TRIP_TYPES.map((ty) => { const k = items.filter((x) => (x.firing === "glaze" ? "glaze" : "bisque") === ty).length; return k ? `${label("ftype", ty)} ${k}` : ""; }).filter(Boolean).join(" · ")
+    : t("pieces.count", { n: items.length });
+  return swipeable(`<a class="card firing" href="#/trip/${esc(tr.id)}">
+    <div class="card-body"><div class="card-title">${esc(dateText(tr.date, true))} · ${esc(t(tr.kind === "drop" ? "trip.drop" : "trip.collect"))}</div>
+    <div class="meta">${esc([tr.studio ? label("studio", tr.studio) : "", what, cost ? money(cost) : ""].filter(Boolean).join(" · "))}</div></div>
+    ${firingPhotos(items.map((x) => DB.pieces[x.pieceId]))}</a>`, "trips", tr.id);
+}
+
+/* One drop-off or collection: studio, date, fare, then the pieces. A drop-off groups them by
+ * firing, each group with its cone, and works out the fee from the studio's prices. */
+VIEWS.trip = (r) => {
+  const tr = DB.trips[r.id];
+  if (!tr) return null;
+  const drop = tr.kind === "drop", c = tripCalc(tr), rows = tripFees(tr);
+  const studios = [...new Set([...listValues("studios"), tr.studio].filter(Boolean))];
+  const prow = (row) => `<div class="card piece slim"><a href="#/piece/${esc(row.p.id)}" class="cover-link"></a>${img(coverOf(row.p), "thumb")}<div class="card-body"><div class="card-title">${esc(pieceName(row.p))}</div><div class="meta" data-calc="tp-${esc(row.p.id)}">${esc(c["tp-" + row.p.id])}</div></div><button class="icon-btn" data-act="trip-unlink" data-id="${esc(row.p.id)}">${ICON.x}</button></div>`;
+  const groups = drop ? TRIP_TYPES.map((ty) => {
+    const rs = rows.filter((x) => x.type === ty), used = conesUsed(ty), cone = (tr.cone || {})[ty] || "";
+    const others = used.filter((u) => u !== cone).slice(0, 6);
+    return `<div class="tgroup">
+      <div class="row between"><span class="lbl">${t("trip.for." + ty)} (${rs.length})</span><button class="btn small" data-act="trip-pick" data-val="${ty}">${ICON.plus} ${t("btn.addPieces")}</button></div>
+      ${rs.length ? `${field(t("f.cone"), textIn(`cone.${ty}`, cone, ty === "bisque" ? (LANG === "zh" ? "素烧 / 900°C" : "Bisque / 900°C") : (LANG === "zh" ? "6号锥 / 1230°C" : "Cone 6 / 1230°C")))}
+        ${others.length ? `<div class="chips scroll cones">${others.map((u) => `<button type="button" class="chip" data-act="cone-pick" data-type="${ty}" data-val="${esc(u)}">${esc(u)}</button>`).join("")}</div>` : ""}
+        <div class="cards">${rs.map(prow).join("")}</div>` : ""}
+    </div>`;
+  }).join("") : `<div class="row between"><span class="lbl">${t("trip.collected")} (${rows.length})</span><button class="btn small" data-act="trip-pick-collect">${ICON.plus} ${t("trip.fromStudio")}</button></div>
+    ${rows.length ? `<div class="cards">${rows.map(prow).join("")}</div>` : ""}`;
+  const allPriced = rows.length && rows.every((x) => x.base > 0);
+  const st = tr.studio ? studioOf(tr.studio) : null;
+  return `<div data-rec data-coll="trips" data-id="${esc(tr.id)}" class="editor pad">
+    ${field(t("fire.studioName"), chips("studio", studios, tr.studio, (v) => label("studio", v), { single: true, add: "studios" }))}
+    ${tr.studio && drop ? `<button class="linkish prices" data-act="studio-open" data-val="${esc(tr.studio)}">${esc(pricesText(tr.studio))} · ${t(st ? "trip.editPrices" : "trip.setPrices")} ›</button>` : ""}
+    <div class="grid2">${field(t("f.date"), dateIn("date", tr.date))}${field(`${t(drop ? "fire.fareThere" : "fire.fareBack")} (${esc(SETTINGS.currency)})`, numIn("fare", tr.fare))}</div>
+    ${groups}
+    ${drop && rows.length ? `<div class="panel tripfee">
+      ${field(`${t("trip.feePaid")} (${esc(SETTINGS.currency)})`, numIn("feePaid", tr.feePaid, c.feeEst === "–" ? "" : c.feeEst).replace("<input ", '<input data-calc-ph="feeEst" '))}
+      ${has(tr.feePaid) && !allPriced ? field(t("trip.shareBy"), chips("split", ["pieces", "weight"], tr.split === "weight" ? "weight" : "pieces", (v) => t("trip.split." + v), { single: true })) : ""}
+      <p class="meta">${t("trip.feeHint")}</p>
+    </div>` : ""}
+    ${calcRow("tripTotal", t(drop ? "trip.totalDrop" : "trip.totalCollect"), c)}
+    ${field(t("f.notes"), textIn("note", tr.note))}
+    <button class="btn danger wide" data-act="delete" data-coll="trips">${t("btn.delete")}</button>
+  </div>`;
+};
+function tripCalc(tr) {
+  const rows = tripFees(tr), n = rows.length || 1;
+  const est = rows.reduce((a, r) => a + n0(r.base), 0);
+  const out = { feeEst: est ? est.toFixed(2) : "–" };
+  const total = (tr.kind === "drop" ? tripFeeTotal(tr) : 0) + n0(tr.fare);
+  out.tripTotal = total ? money(total) : "–";
+  for (const r of rows) {
+    const bits = [];
+    if (tr.kind === "collect") { const d = DB.trips[r.x.dropId]; bits.push(label("ftype", r.type), d ? t("trip.droppedOn", { date: dateText(d.date) }) : ""); }
+    else if (r.pr && r.pr.by === "cm") bits.push(r.h == null ? (has(tr.feePaid) ? "" : t("trip.needHeight")) : `${fmt(r.h)} cm`);
+    else if (r.pr && r.pr.by === "kg") bits.push(r.w == null ? (has(tr.feePaid) ? "" : t("cost.noWeight")) : `${fmt(r.w, 0)} g`);
+    if (tr.kind === "drop" && r.fee) bits.push(`${t("cost.firing")} ${money(r.fee)}`);
+    if (n0(tr.fare)) bits.push(`${t("bd.fares")} ${money(n0(tr.fare) / n)}`);
+    out["tp-" + r.p.id] = bits.filter(Boolean).join(" · ");
+  }
+  return out;
+}
+function pricesText(name) {
+  const bits = TRIP_TYPES.map((ty) => { const pr = studioPrice(name, ty); return pr ? `${label("ftype", ty)} ${money(pr.price)} ${t("studio.per." + pr.by)}` : ""; }).filter(Boolean);
+  return bits.length ? bits.join(" · ") : t("trip.noPrices");
+}
+
+/* A studio's price list: what each kind of firing costs, and how it's charged. */
+VIEWS.studio = (r) => {
+  const st = DB.studios[r.id];
+  if (!st) return null;
+  return `<div data-rec data-coll="studios" data-id="${esc(st.id)}" class="editor pad">
+    ${TRIP_TYPES.map((ty) => { const x = st[ty] || {}, by = PRICE_BY.includes(x.by) ? x.by : "kg"; return `<div class="panel">
+      <b>${t("trip.price." + ty)}</b>
+      ${field(t("studio.charged"), chips(`${ty}.by`, PRICE_BY, by, (v) => t("studio.by." + v), { single: true }))}
+      ${field(`${t("studio.price")} (${esc(SETTINGS.currency)} ${t("studio.per." + by)})`, numIn(`${ty}.price`, x.price))}
+    </div>`; }).join("")}
+    <p class="meta">${t("studio.hint")}</p>
+  </div>`;
 };
 
 VIEWS.firing = (r) => {
@@ -666,10 +860,8 @@ VIEWS.firing = (r) => {
   if (!f) return null;
   const ps = piecesInFiring(f.id);
   const kilns = [...new Set(Object.values(DB.firings).map((x) => x.kiln).filter(Boolean))];
-  const where = f.where || "home";
-  const fc = firingCalc(f);
+  const where = "home", fc = {};
   return `<div data-rec data-coll="firings" data-id="${esc(f.id)}" class="editor pad">
-    ${field(t("fire.where"), chips("where", ["home", "studio"], where, (v) => t("fire." + v), { single: true }))}
     ${where === "studio" ? `
       ${field(t("fire.studioName"), chips("studio", [...new Set([...listValues("studios"), f.studio].filter(Boolean))], f.studio, (v) => label("studio", v), { single: true, add: "studios" }))}
       ${field(t("fire.charged"), chips("split", ["pieces", "weight"], byWeight(f) ? "weight" : "pieces", (v) => t("fire.split." + v), { single: true }))}
@@ -871,7 +1063,21 @@ VIEWS.pcost = (r) => {
     }
     fire += `</div>`;
   }
-  if (!k.fires.length) fire = `<p class="meta">${t("bd.noFiring")}</p>`;
+  for (const x of k.trips) {
+    const tr = x.tr, r = x.row, ty = label("ftype", r.type);
+    fire += `<div class="bd-fire"><a class="bd-link" href="#/trip/${esc(tr.id)}">${esc(tripName(tr))}${tr.kind === "drop" && (tr.cone || {})[r.type] ? " · " + esc(tr.cone[r.type]) : ""} ›</a>`;
+    if (tr.kind === "drop") {
+      const how = r.how === "share" ? t("bd.feeShare", { type: ty, fee: money(Number(tr.feePaid)) })
+        : r.how === "kg" ? t("bd.feeKg", { type: ty, g: fmt(r.w, 0), rate: `${money(r.pr.price)} ${t("studio.per.kg")}` })
+        : r.how === "cm" ? t("bd.feeCm", { type: ty, h: fmt(r.h), rate: `${money(r.pr.price)} ${t("studio.per.cm")}` })
+        : r.how === "piece" ? t("bd.feePiece", { type: ty })
+        : t(r.how === "missing" ? (r.pr.by === "cm" ? "trip.needHeight" : "cost.noWeight") : "trip.needPrice", { studio: tr.studio ? label("studio", tr.studio) : t("fire.studio") });
+      fire += row(esc(how), esc(money(r.fee)));
+    }
+    fire += row(esc(t(tr.kind === "drop" ? "bd.fareThere" : "bd.fareBack", { fare: money(n0(tr.fare)), n: t("pieces.count", { n: x.n }) })), esc(money(x.fare)));
+    fire += `</div>`;
+  }
+  if (!k.fires.length && !k.trips.length) fire = `<p class="meta">${t("bd.noFiring")}</p>`;
 
   const extra = [
     k.glazeLine ? box(t("cost.glaze"), k.glaze, glazeSteps(p, k.glazeLine, row)) : "",
@@ -1042,6 +1248,8 @@ function detailTitle() {
   if (r.name === "more" || r.name === "settings") return t("tab.settings");
   if (r.name === "purchase") return t("buy.order");
   if (r.name === "pcost") return t("bd.title");
+  if (r.name === "trip") return t(DB.trips[r.id].kind === "drop" ? "trip.drop" : "trip.collect");
+  if (r.name === "studio") return label("studio", DB.studios[r.id].name);
   return "";
 }
 function hydrate(root) {
@@ -1060,7 +1268,7 @@ function paintSync() {
 }
 /* Every computed figure on the page refreshes as you type, and a row whose figure has just
  * become available shows itself. */
-const CALCS = { piece: (r) => calc(r), firing: (r) => firingCalc(r), purchase: (r) => purchaseCalc(r) };
+const CALCS = { piece: (r) => calc(r), firing: () => ({}), trip: (r) => tripCalc(r), purchase: (r) => purchaseCalc(r) };
 function updateCalcs(rec) {
   if (!CALCS[ROUTE.name]) return;
   const c = CALCS[ROUTE.name](rec);
@@ -1146,6 +1354,26 @@ const SHEET_VIEWS = {
         <a class="btn wide" href="#/${route}/${esc(rec.id)}">${t("btn.open")}</a>
         <button class="btn danger wide" data-act="menu-delete">${ICON.trash} ${t("btn.delete")}</button>
       </div>`;
+  },
+  /** Add pieces to a drop-off for one firing. Pieces already waiting at a studio aren't offered. */
+  pickDrop() {
+    const tr = DB.trips[SHEET.id], ty = SHEET.type;
+    const away = new Set(atStudio().filter((w) => w.drop.id !== tr.id).map((w) => w.p.id));
+    const want = ty === "bisque" ? "wet" : "bisque";
+    const ps = sortedPieces().filter((p) => !away.has(p.id)).sort((a, b) => (stageOf(b) === want) - (stageOf(a) === want));
+    return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${t("trip.for." + ty)}</h3>
+      <div class="cards">${ps.map((p) => { const on = (tr.items || []).some((x) => x.pieceId === p.id && (x.firing === "glaze" ? "glaze" : "bisque") === ty); return `<button class="card piece slim pick${on ? " picked" : ""}" data-act="drop-toggle" data-id="${esc(p.id)}">${img(coverOf(p), "thumb")}<div class="card-body"><div class="card-title">${esc(pieceName(p))}</div><div class="meta">${t("stage." + stageOf(p))}</div></div><i class="check">${on ? "✓" : ""}</i></button>`; }).join("") || empty(t("empty.pieces"))}</div>
+      <button class="btn primary wide" data-act="sheet-close">${t("btn.done")}</button>`;
+  },
+  /** Tick what came home: everything still at this studio, plus what this collection already has. */
+  pickCollect() {
+    const tr = DB.trips[SHEET.id];
+    const mine = liveItems(tr).map((x) => ({ drop: DB.trips[x.dropId], item: x, p: DB.pieces[x.pieceId] })).filter((w) => w.drop);
+    const list = [...mine, ...atStudio(tr.studio || null)];
+    return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${t("trip.atStudio")}</h3>
+      ${list.length > 1 ? `<button class="linkish" data-act="collect-all">${t("trip.selectAll")}</button>` : ""}
+      <div class="cards">${list.map((w) => { const on = (tr.items || []).some((x) => x.pieceId === w.p.id && x.dropId === w.drop.id); return `<button class="card piece slim pick${on ? " picked" : ""}" data-act="collect-toggle" data-id="${esc(w.p.id)}" data-drop="${esc(w.drop.id)}">${img(coverOf(w.p), "thumb")}<div class="card-body"><div class="card-title">${esc(pieceName(w.p))}</div><div class="meta">${esc([label("ftype", w.item.firing === "glaze" ? "glaze" : "bisque"), t("trip.droppedOn", { date: dateText(w.drop.date) }), w.drop.studio ? label("studio", w.drop.studio) : ""].filter(Boolean).join(" · "))}</div></div><i class="check">${on ? "✓" : ""}</i></button>`; }).join("") || empty(t("trip.nothingWaiting"))}</div>
+      <button class="btn primary wide" data-act="sheet-close">${t("btn.done")}</button>`;
   },
   pickInsp() {
     const p = DB.pieces[SHEET.id];
@@ -1254,6 +1482,47 @@ document.addEventListener("click", async (e) => {
     }
     case "list-remove": listRemove(el.dataset.list, el.dataset.val); save(); render(true); return;
     case "new-piece": { const p = newRecord("pieces", { started: today(), unit: SETTINGS.unit }); save(); go("#/piece/" + p.id); return; }
+    case "new-drop": {
+      const last = tripsSorted()[0], studio = (last && last.studio) || listValues("studios")[0] || "";
+      const cone = {}; for (const ty of TRIP_TYPES) cone[ty] = conesUsed(ty)[0] || "";   // the usual cones, ready to change
+      const tr = newRecord("trips", { kind: "drop", date: today(), studio, cone, items: [] });
+      save(); go("#/trip/" + tr.id); return;
+    }
+    case "new-collect": {
+      const waiting = atStudio(), where = [...new Set(waiting.map((w) => w.drop.studio))];
+      const tr = newRecord("trips", { kind: "collect", date: today(), studio: where.length === 1 ? where[0] : ((tripsSorted()[0] || {}).studio || ""), items: [] });
+      save(); go("#/trip/" + tr.id);
+      if (waiting.length) setTimeout(() => openSheet({ kind: "pickCollect", id: tr.id }), 60);
+      return;
+    }
+    case "trip-pick": openSheet({ kind: "pickDrop", id: rec.id, type: el.dataset.val }); return;
+    case "trip-pick-collect": openSheet({ kind: "pickCollect", id: rec.id }); return;
+    case "drop-toggle": {   // a piece goes for one firing per drop-off: ticking it here moves it from the other group
+      const tr = DB.trips[SHEET.id], id = el.dataset.id, ty = SHEET.type;
+      const was = (tr.items || []).find((x) => x.pieceId === id);
+      tr.items = (tr.items || []).filter((x) => x.pieceId !== id);
+      if (!was || (was.firing === "glaze" ? "glaze" : "bisque") !== ty) tr.items.push({ pieceId: id, firing: ty });
+      touch(tr); save(); drawSheet(); return;
+    }
+    case "collect-toggle": {
+      const tr = DB.trips[SHEET.id], id = el.dataset.id, did = el.dataset.drop;
+      const on = (tr.items || []).some((x) => x.pieceId === id && x.dropId === did);
+      if (on) tr.items = tr.items.filter((x) => !(x.pieceId === id && x.dropId === did));
+      else { const d = DB.trips[did], it = d && (d.items || []).find((x) => x.pieceId === id); tr.items = [...(tr.items || []), { pieceId: id, firing: it ? it.firing : "bisque", dropId: did }]; }
+      touch(tr); save(); drawSheet(); return;
+    }
+    case "collect-all": {
+      const tr = DB.trips[SHEET.id];
+      for (const w of atStudio(tr.studio || null)) tr.items = [...(tr.items || []), { pieceId: w.p.id, firing: w.item.firing, dropId: w.drop.id }];
+      touch(tr); save(); drawSheet(); return;
+    }
+    case "trip-unlink": e.preventDefault(); rec.items = (rec.items || []).filter((x) => x.pieceId !== el.dataset.id); changed(rec, true); return;
+    case "cone-pick": rec.cone = Object.assign({}, rec.cone, { [el.dataset.type]: el.dataset.val }); changed(rec, true); return;
+    case "studio-open": {
+      const name = el.dataset.val;
+      const st = studioOf(name) || newRecord("studios", { name, bisque: { by: "kg" }, glaze: { by: "kg" } });
+      save(); go("#/studio/" + st.id); return;
+    }
     case "new-firing": { const f = newRecord("firings", { date: today(), type: "bisque" }); save(); go("#/firing/" + f.id); return; }
     case "new-design": { const d = newRecord("designs", { status: "concept" }); save(); go("#/design/" + d.id); return; }
     case "new-insp": { const x = newRecord("insps", { tags: [] }); save(); go("#/insp/" + x.id); return; }
@@ -1447,11 +1716,15 @@ document.addEventListener("contextmenu", (e) => {   // right-click on a computer
 function deleteRecord(coll, id, fromPage) {
   const rec = DB[coll] && DB[coll][id];
   if (!rec) { closeSwipe(); return; }
-  const what = { pieces: "confirm.deletePiece", firings: "confirm.deleteFiring", designs: "confirm.deleteDesign", insps: "confirm.deleteInsp", purchases: "confirm.deletePurchase", shapes: "confirm.removeShape" }[coll];
-  const name = coll === "pieces" ? pieceName(rec) : coll === "designs" ? designName(rec) : coll === "insps" ? inspName(rec) : coll === "firings" ? firingName(rec) : "";
+  const what = { pieces: "confirm.deletePiece", firings: "confirm.deleteFiring", designs: "confirm.deleteDesign", insps: "confirm.deleteInsp", purchases: "confirm.deletePurchase", shapes: "confirm.removeShape", trips: "confirm.deleteTrip" }[coll];
+  const name = coll === "pieces" ? pieceName(rec) : coll === "designs" ? designName(rec) : coll === "insps" ? inspName(rec) : coll === "firings" ? firingName(rec) : coll === "trips" ? tripName(rec) : "";
   if (!confirm(name ? `${t(what)}\n\n${name}` : t(what))) { closeSwipe(); return; }
   if (coll === "firings") for (const p of piecesInFiring(id)) { for (const k of ["bisque", "glaze"]) if (p[k] && p[k].firingId === id) p[k].firingId = null; touch(p); }
   if (coll === "designs") for (const p of Object.values(DB.pieces)) if (p.designId === id) { p.designId = null; touch(p); }
+  if (coll === "pieces" || coll === "trips") for (const tr of Object.values(DB.trips)) {   // a deleted piece leaves its trips; a deleted drop-off un-collects its pieces
+    const keep = (tr.items || []).filter((x) => coll === "pieces" ? x.pieceId !== id : x.dropId !== id);
+    if (keep.length !== (tr.items || []).length) { tr.items = keep; touch(tr); }
+  }
   if (coll === "insps") {
     for (const p of Object.values(DB.pieces)) if ((p.inspIds || []).includes(id)) { p.inspIds = p.inspIds.filter((x) => x !== id); touch(p); }
     for (const d of Object.values(DB.designs)) if (d.inspId === id) { d.inspId = null; touch(d); }
@@ -1475,7 +1748,7 @@ function onChip(el, rec) {
   }
   if (!rec) return;
   const cur = getPath(rec, group);
-  if (single) setPath(rec, group, cur === val && !["sale.status", "status", "type", "where", "split"].includes(group) ? null : val);
+  if (single) setPath(rec, group, cur === val && !["sale.status", "status", "type", "where", "split"].includes(group) && !group.endsWith(".by") ? null : val);
   else { const arr = Array.isArray(cur) ? cur : []; setPath(rec, group, arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]); }
   if (group === "sale.status" && val === "sold" && !rec.sale.soldDate) rec.sale.soldDate = today();
   if (group === "store" && rec.store === val && ROUTE.name === "purchase") {   // picking a shop brings in what's usually bought there
@@ -1575,7 +1848,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "24";
+const APP_VERSION = "25";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });

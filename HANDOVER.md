@@ -70,6 +70,13 @@ Things worth knowing before changing the shape of a record:
   trimmed weight from `wet.trimmed` to `trim.weight`, and old single-item purchases
   into `items[]`. **Add to it rather than renaming a field in place** — renaming one
   without a migration is how the trimmed weights went missing once.
+- **The studio** is recorded as trips, not firings: `DB.trips` holds drop-offs (`kind: "drop"`,
+  items `{ pieceId, firing: "bisque"|"glaze" }`, a cone per group, the firing fee and the fare there)
+  and collections (`kind: "collect"`, items carry the `dropId` they came from, and the fare back).
+  `DB.studios` keeps each studio's prices per kg, per piece or per cm of height. `atStudio()` is
+  everything dropped off and not collected. `DB.firings` is now home-kiln only: `migrate()` turns
+  an old communal firing into `drop-<id>` / `collect-<id>` trips with ids and times taken from the
+  firing, so every copy converts it identically.
 - **Costs**: `rateFor(kind, name)` averages what's been paid per gram across all
   orders, including each line's share of that order's delivery. `pieceCost(p)` charges
   clay and glaze at those rates and adds an equal share of any linked firing's fee and

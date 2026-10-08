@@ -10,7 +10,7 @@
 "use strict";
 
 const LS_DB = "clay.db.v1", LS_SETTINGS = "clay.settings.v1";
-const COLLECTIONS = ["pieces", "firings", "designs", "insps", "purchases", "shapes"];
+const COLLECTIONS = ["pieces", "firings", "designs", "insps", "purchases", "shapes", "trips", "studios"];
 const LISTS = ["tags", "clay", "glazes", "channels", "studios", "stores"];
 const DEFAULT_LISTS = {
   tags: ["cup", "plate", "bowl", "vase", "marbled", "coffee_cup"],
@@ -47,6 +47,30 @@ function migrate(db) {
     if (p.wet && set(p.wet.trimmed) && !(p.trim && set(p.trim.weight))) {
       p.trim = Object.assign({}, p.trim, { weight: p.wet.trimmed });
     }
+  }
+  /* A communal-kiln firing becomes a drop-off and (if it was collected) a collection. The ids and
+   * times come from the firing itself, so every copy of the data converts it the same way and
+   * the copies still merge cleanly. The firing is then retired with a tombstone. */
+  db.trips = db.trips || {}; db.deleted = db.deleted || {};
+  for (const f of Object.values(db.firings || {})) {
+    if ((f.where || "home") !== "studio") continue;
+    const type = f.type === "bisque" ? "bisque" : "glaze";
+    const ids = Object.values(db.pieces || {}).filter((p) => (p.bisque && p.bisque.firingId === f.id) || (p.glaze && p.glaze.firingId === f.id)).map((p) => p.id);
+    const at = f.updatedAt || f.createdAt || 1, made = f.createdAt || at;
+    const drop = "drop-" + f.id, col = "collect-" + f.id;
+    const weight = f.split === "weight";
+    if (!db.trips[drop] && !db.deleted["trips:" + drop]) db.trips[drop] = {
+      id: drop, kind: "drop", date: f.date || "", studio: f.studio || "", fare: f.travel, cone: { [type]: f.cone || "" },
+      feePaid: weight ? null : f.fee, split: "pieces", prices: weight && set(f.perKg) ? { [type]: { by: "kg", price: f.perKg } } : undefined,
+      items: ids.map((id) => ({ pieceId: id, firing: type })),
+      note: [f.kiln, f.notes].filter(Boolean).join(" · "), createdAt: made, updatedAt: at
+    };
+    if ((f.collected || set(f.travelBack)) && !db.trips[col] && !db.deleted["trips:" + col]) db.trips[col] = {
+      id: col, kind: "collect", date: f.collected || f.date || "", studio: f.studio || "", fare: f.travelBack,
+      items: ids.map((id) => ({ pieceId: id, firing: type, dropId: drop })), createdAt: made, updatedAt: at
+    };
+    delete db.firings[f.id];
+    db.deleted["firings:" + f.id] = Math.max(db.deleted["firings:" + f.id] || 0, at + 1);
   }
   return db;
 }
