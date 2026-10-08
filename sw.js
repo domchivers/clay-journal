@@ -2,7 +2,7 @@
  * Each fresh copy is also kept in the cache, which is what the app runs from when offline
  * (or when the studio Wi-Fi is too slow to answer within a few seconds).
  * Only registers over HTTPS or localhost. */
-const CACHE = "clay-v25";
+const CACHE = "clay-v26";
 const ASSETS = ["./", "./index.html", "./styles.css?v=21", "./i18n.js?v=21", "./supabase-config.js?v=21", "./cloud.js?v=21", "./store.js?v=21", "./app.js?v=21", "./manifest.webmanifest", "./icons/icon-192.png?v=1", "./icons/icon-180.png?v=1"];
 const SLOW_MS = 4000;
 

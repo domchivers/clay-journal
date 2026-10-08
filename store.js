@@ -231,6 +231,8 @@ const Photos = (() => {
       if (b) { const u = URL.createObjectURL(b); urls.set(key, u); return u; }
       return cloudUrl || "";
     },
+    /** The address of a photo already loaded this session, so a redraw can show it at once. */
+    peek(p, thumb) { return p ? urls.get(thumb ? p.id + ".t" : p.id) || "" : ""; },
     forget(list) { for (const p of list) { del(p.id); del(p.id + ".t"); } },
     get, del, tx,
     /** Every photo not yet in the cloud, with the record that holds it. */

@@ -1255,6 +1255,8 @@ function detailTitle() {
 function hydrate(root) {
   $$("img[data-pid]", root).forEach((el) => {
     const p = PHOTO_INDEX.get(el.dataset.pid);
+    const ready = Photos.peek(p, !!el.dataset.thumb);
+    if (ready) { el.src = ready; return; }
     Photos.src(p, !!el.dataset.thumb).then((u) => { if (u) el.src = u; else el.classList.add("missing"); });
   });
 }
@@ -1305,8 +1307,12 @@ function drawSheet() {
   if (!SHEET) return;
   PHOTO_INDEX = PHOTO_INDEX || new Map();
   const el = $("#sheet");
+  // redrawing the same sheet (ticking a piece in a list) keeps the list where it was scrolled to
+  const same = drawSheet.last === SHEET, old = $(".sheet-card", el), y = same && old ? old.scrollTop : 0;
   el.hidden = false;
   el.innerHTML = `<div class="sheet-back" data-act="sheet-close"></div><div class="sheet-card">${SHEET_VIEWS[SHEET.kind]()}</div>`;
+  if (y) $(".sheet-card", el).scrollTop = y;
+  drawSheet.last = SHEET;
   hydrate(el);
 }
 function sheetPhoto() {
@@ -1848,7 +1854,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "25";
+const APP_VERSION = "26";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
