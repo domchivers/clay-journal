@@ -43,7 +43,10 @@ function migrate(db) {
       ? [{ kind: b.kind || "clay", name: b.name || "", grams: b.grams, cost: b.cost }] : [];
   }
   for (const p of Object.values(db.pieces || {})) {
-    for (const ph of p.photos || []) if (ph.stage === "final") ph.stage = "glazed";   // glazed is the last stage now
+    if (p.wet && p.wet.dryNotes && !p.wet.dryMoved) {   // drying notes now live in the piece's notes
+      p.notes = [p.notes, p.wet.dryNotes].filter(Boolean).join("\n");
+      p.wet.dryMoved = true;
+    }
     if (p.wet && set(p.wet.trimmed) && !(p.trim && set(p.trim.weight))) {
       p.trim = Object.assign({}, p.trim, { weight: p.wet.trimmed });
     }

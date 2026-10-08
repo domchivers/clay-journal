@@ -12,9 +12,8 @@ const fmt = (n, d = 1) => has(n) ? (Math.round(n * 10 ** d) / 10 ** d).toString(
 const money = (n) => has(n) ? `${SETTINGS.currency}${Number(n).toFixed(2)}` : "";
 
 const TECHNIQUES = ["wheel", "hand", "coil", "slab", "pinch", "marbled"];
-/* Glazed is the finished look, so it's the last stage. What's measured after the glaze firing
- * still lives in p.final, it's just shown on the Glazed tab. */
-const STAGES = ["wet", "bisque", "glazed"];
+/* Glaze is the piece with glaze on, before its firing; Final is the piece once fired. */
+const STAGES = ["wet", "bisque", "glazed", "final"];
 const METHODS = ["dip", "spray", "brush"];
 const OUTCOMES = ["success", "partial", "failed"];
 const DEFECTS = ["crack", "warp", "crawl", "pinhole", "color", "other"];
@@ -57,12 +56,12 @@ function stageOf(p) {
   const keys = shapeFields(p);
   if (hasDims(p.bisque, keys) || any(p.bisque, ["weight", "firingId"]) || hasHandle(p.bisque)) i = 1;
   if (any(p.glaze, ["glazes", "method", "firingId", "grams"])) i = 2;
-  if (hasDims(p.final, keys) || any(p.final, ["weight", "outcome"]) || hasHandle(p.final)) i = 2;
-  for (const ph of p.photos || []) i = Math.max(i, STAGES.indexOf(ph.stage === "final" ? "glazed" : ph.stage));
-  for (const tr of Object.values(DB.trips)) for (const x of tr.items || []) {   // back from a bisque firing, or sent for a glaze one
+  if (hasDims(p.final, keys) || any(p.final, ["weight", "outcome"]) || hasHandle(p.final)) i = 3;
+  for (const ph of p.photos || []) i = Math.max(i, STAGES.indexOf(ph.stage));
+  for (const tr of Object.values(DB.trips)) for (const x of tr.items || []) {   // back from bisque, glazed and sent off, back from the glaze firing
     if (x.pieceId !== p.id) continue;
-    if (tr.kind === "collect") i = Math.max(i, x.firing === "glaze" ? 2 : 1);
-    else if (x.firing === "glaze") i = Math.max(i, 1);
+    if (tr.kind === "collect") i = Math.max(i, x.firing === "glaze" ? 3 : 1);
+    else if (x.firing === "glaze") i = Math.max(i, 2);
   }
   return STAGES[i];
 }
@@ -91,6 +90,7 @@ function calc(p) {
     shrinkHB: shrinkText(shrink(handleOf(p.wet), handleOf(p.bisque))),
     shrinkHF: shrinkText(shrink(handleOf(p.wet), handleOf(p.final))),
     ...glazeFigures(p),
+    dryDays: dryText(p),
     lossB: lossText(p, p.bisque),
     lossF: lossText(p, p.final),
     expect: expectText(p, keys),
@@ -109,6 +109,13 @@ function glazeFigures(p) {
     gTotal: gc.cost == null ? "–" : money(gc.cost),
     gNote: src
   };
+}
+/** Days from throwing to trimming, once both dates are in (an old typed number otherwise). */
+function dryText(p) {
+  const a = p.started, b = (p.trim || {}).date;
+  if (a && b) { const d = Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000); if (d >= 0) return t("f.days", { n: d }); }
+  const old = (p.wet || {}).dryDays;
+  return has(old) ? t("f.days", { n: old }) : "–";
 }
 /** Weight lost since the piece was made: from the trimmed weight when there is one, else as thrown. */
 function lossText(p, o) {
@@ -368,7 +375,7 @@ function glazeRate(p) {
   for (const b of Object.values(DB.purchases)) for (const l of orderLines(b)) if (l.kind === "glaze" && l.grams) { ml += l.grams; c += l.total; }
   return ml ? { rate: c / ml, from: "all" } : null;
 }
-const isGlazed = (p) => stageOf(p) === "glazed" || ((p.glaze || {}).glazes || []).length > 0 || !!(p.glaze || {}).firingId;
+const isGlazed = (p) => ["glazed", "final"].includes(stageOf(p)) || ((p.glaze || {}).glazes || []).length > 0 || !!(p.glaze || {}).firingId;
 /** Every step of the glaze sum, each one either estimated or typed in. */
 function glazeCalc(p) {
   const g = p.glaze || {}, size = glazeSize(p), r = glazeRate(p);
@@ -612,16 +619,18 @@ function pieceCard(p) {
 
 /* A piece is one stage at a time: the tabs across the top swap what's below them, so only
  * the handful of numbers that matter right now is on screen. */
-const PIECE_TABS = ["wet", "bisque", "glaze", "design", "cost"];
+const PIECE_TABS = ["wet", "bisque", "glaze", "final", "design", "cost"];
 let PIECE_TAB = null, PIECE_TAB_FOR = null;
+let GW_TAB = "thrown";            // Greenware's own tabs: as thrown, after trimming, handle
 const tabLabel = (k) => k === "glaze" ? t("stage.glazed") : k === "design" ? t("tab.design") : k === "cost" ? t("cost.title") : t("stage." + k);
 /** Has anything been filled in for this tab yet? Marks the tab with a small dot. */
 function tabFilled(p, k) {
   const any = (o, ks) => o && ks.some((x) => { const v = o[x]; return Array.isArray(v) ? v.length : (has(v) || (typeof v === "string" && v)); });
   const keys = shapeFields(p);
-  if (k === "wet") return hasDims(p.wet, keys) || hasDims(p.trim, keys) || any(p.wet, ["weight", "dryDays", "dryNotes"]) || any(p.trim, ["weight"]) || hasHandle(p.wet) || (p.clay || []).length > 0 || (p.technique || []).length > 0;
+  if (k === "wet") return hasDims(p.wet, keys) || hasDims(p.trim, keys) || any(p.wet, ["weight", "dryDays"]) || any(p.trim, ["weight", "date"]) || hasHandle(p.wet) || (p.clay || []).length > 0 || (p.technique || []).length > 0;
   if (k === "bisque") return hasDims(p.bisque, keys) || any(p.bisque, ["weight", "firingId"]) || hasHandle(p.bisque);
-  if (k === "glaze") return any(p.glaze, ["glazes", "method", "firingId", "grams"]) || hasDims(p.final, keys) || any(p.final, ["weight", "outcome"]) || hasHandle(p.final);
+  if (k === "glaze") return any(p.glaze, ["glazes", "method", "firingId", "grams"]);
+  if (k === "final") return hasDims(p.final, keys) || any(p.final, ["weight", "outcome"]) || hasHandle(p.final);
   if (k === "design") return !!p.designId || (p.inspIds || []).length > 0;
   return !!(p.sale && p.sale.status && p.sale.status !== "not") || pieceCost(p).total > 0;
 }
@@ -635,15 +644,16 @@ VIEWS.piece = (r) => {
   const addStage = r.addStage || st;
   const photos = p.photos || [];
   return `<div data-rec data-coll="pieces" data-id="${esc(p.id)}" class="editor">
-    <div class="hero" data-act="${photos.length ? "photo" : ""}" data-pid="${esc((coverOf(p) || {}).id || "")}"${photos.length ? ` data-hold="photo:${esc(coverOf(p).id)}"` : ""}>${photos.length ? img(coverOf(p), "hero-img", false) : `<label class="hero-add"><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}<span>${t("btn.takePhoto")}</span></label>`}</div>
+    <div class="hero sq"${photos.length ? ` data-hold="photo:${esc(coverOf(p).id)}"` : ""}>${photos.length ? img(coverOf(p), "hero-img", false) : `<label class="hero-add"><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}<span>${t("btn.takePhoto")}</span></label>`}</div>
     <input class="title-in" type="text" data-f="title" value="${esc(p.title || "")}" placeholder="${esc(t("untitled"))}">
     <div class="ptabs">${PIECE_TABS.map((k) => `<button data-act="piece-tab" data-val="${k}" aria-pressed="${k === tab}">${esc(tabLabel(k))}${tabFilled(p, k) ? `<i class="dot st-${k === "glaze" ? "glazed" : k}"></i>` : ""}</button>`).join("")}</div>
     <div class="tabbody">${TAB_BODY[tab](p, c, u)}</div>
 
     <div class="photos">
-      <div class="ph-grid">${photos.map((ph) => `<button class="ph" data-act="photo" data-pid="${esc(ph.id)}" data-hold="photo:${esc(ph.id)}">${img(ph)}<span class="pill st-${ph.stage}">${t("stage." + ph.stage)}</span>${ph.id === p.cover ? '<i class="star">★</i>' : ""}${ph.url ? "" : '<i class="dot" title="not uploaded"></i>'}</button>`).join("")}
+      <div class="ph-grid">${photos.map((ph) => `<button class="ph" type="button" data-hold="photo:${esc(ph.id)}">${img(ph)}<span class="pill st-${ph.stage}">${t("stage." + ph.stage)}</span>${ph.id === p.cover ? '<i class="star">★</i>' : ""}${ph.url ? "" : '<i class="dot" title="not uploaded"></i>'}</button>`).join("")}
         <label class="ph add"><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}</label>
         <label class="ph add"><input type="file" accept="image/*" multiple hidden data-upload="piece">${ICON.image}</label></div>
+      ${photos.length ? `<p class="meta ph-hint">${t("ph.holdHint")}</p>` : ""}
       <div class="ph-stage"><span>${t("f.addStage")}</span>${chips("addStage", STAGES, addStage, (v) => t("stage." + v), { single: true })}</div>
     </div>
 
@@ -660,25 +670,35 @@ const TAB_BODY = {
       <select data-f="clay.${i}.type" data-list="clay"><option value="">${t("f.clayType")}</option>${[...new Set([...listValues("clay"), row.type].filter(Boolean))].map((v) => `<option value="${esc(v)}"${v === row.type ? " selected" : ""}>${esc(label("clay", v))}</option>`).join("")}<option value="__new__">+ …</option></select>
       <input type="number" inputmode="numeric" step="any" data-f="clay.${i}.g" data-num value="${has(row.g) ? esc(row.g) : ""}" placeholder="g">
       <button class="icon-btn" data-act="clay-del" data-i="${i}" aria-label="${t("btn.delete")}">${ICON.x}</button></div>`).join("");
+    const sub = ["thrown", "trim", "handle"].includes(GW_TAB) ? GW_TAB : "thrown";
+    const filled = { thrown: !!p.started || hasDims(w, keys) || has(w.weight), trim: !!tr.date || hasDims(tr, keys) || has(trimWeight(p)), handle: hasHandle(w) };
+    const body = {
+      thrown: `${field(t("f.dateThrown"), dateIn("started", p.started))}
+        ${dims("wet", w, u, keys)}
+        ${field(t("f.weightThrown"), numIn("wet.weight", w.weight))}`,
+      trim: `${field(t("f.dateTrimmed"), dateIn("trim.date", tr.date))}
+        ${dims("trim", tr, u, keys)}
+        ${field(t("f.weightTrimmed"), numIn("trim.weight", has(tr.weight) ? tr.weight : (w.trimmed)))}
+        ${calcRow("trimmed", t("f.trimmedOff"), c)}
+        ${calcRow("expect", t("f.expect"), c)}`,
+      handle: `${field(`${t("f.handleCut")} (${esc(u)})`, numIn("wet.handle.cut", (handleOf(w) || {}).cut))}
+        <span class="lbl">${t("f.handleDims")}</span>
+        ${dims("wet.handle", handleOf(w) || {}, u, [{ key: "l", label: t("dim.l") }, { key: "w", label: t("dim.w") }, { key: "h", label: t("dim.h") }])}`
+    };
     return `
-      ${field(t("f.shape"), `<div class="chips">${[...Object.keys(SHAPES), ...customShapes.map((x) => x.id)].map((k) => `<button type="button" class="chip" data-act="shape" data-val="${esc(k)}" aria-pressed="${(p.shape || "box") === k}">${esc(shapeName(k))}</button>`).join("")}<button type="button" class="chip add" data-act="shape-new">+</button></div>`)}
-      <div class="row between"><span class="lbl">${t("f.dimsThrown")}</span><select data-f="unit" class="unit">${UNITS.map((x) => `<option${x === u ? " selected" : ""}>${x}</option>`).join("")}</select></div>
-      ${dims("wet", w, u, keys)}
-      ${field(t("f.weightThrown"), numIn("wet.weight", w.weight))}
-      <span class="lbl">${t("f.dimsTrimmed")}</span>
-      ${dims("trim", tr, u, keys)}
-      ${field(t("f.weightTrimmed"), numIn("trim.weight", has(tr.weight) ? tr.weight : (w.trimmed)))}
-      ${calcRow("trimmed", t("f.trimmedOff"), c)}
-      ${calcRow("expect", t("f.expect"), c)}
-      ${handleBlock("wet", w, u, true, c)}
-      <span class="lbl">${t("sec.clay")}</span>
+      <span class="lbl first">${t("sec.clay")}</span>
       ${clayRows}
       <div class="row"><button class="btn small" data-act="clay-add">${ICON.plus} ${t("btn.addRow")}</button>${(p.clay || []).length ? `<span class="meta">${t("f.totalClay")} <b data-calc="total">${c.total}</b></span>` : ""}</div>
+      <div class="row between shape-row"><span class="lbl">${t("f.shape")}</span><select data-f="unit" class="unit" aria-label="${t("f.unit")}">${UNITS.map((x) => `<option${x === u ? " selected" : ""}>${x}</option>`).join("")}</select></div>
+      ${`<div class="chips">${[...Object.keys(SHAPES), ...customShapes.map((x) => x.id)].map((k) => `<button type="button" class="chip" data-act="shape" data-val="${esc(k)}" aria-pressed="${(p.shape || "box") === k}">${esc(shapeName(k))}</button>`).join("")}<button type="button" class="chip add" data-act="shape-new">+</button></div>`}
+      <div class="measure">
+        <div class="subtabs">${["thrown", "trim", "handle"].map((k) => `<button data-act="gw-tab" data-val="${k}" aria-pressed="${k === sub}">${t("gw." + k)}${filled[k] ? '<i class="dot"></i>' : ""}</button>`).join("")}</div>
+        ${body[sub]}
+      </div>
       ${field(t("f.technique"), chips("technique", TECHNIQUES, p.technique, (v) => t("tech." + v)))}
       ${field(t("f.tags"), chips("tags", [...new Set([...listValues("tags"), ...(p.tags || [])])], p.tags, (v) => label("tag", v), { add: "tags" }))}
-      ${field(t("f.started"), dateIn("started", p.started))}
-      <div class="grid2">${field(t("f.dryDays"), numIn("wet.dryDays", w.dryDays))}${field(t("f.dryNotes"), textIn("wet.dryNotes", w.dryNotes))}</div>
-      ${field(t("f.notes"), area("notes", p.notes))}`;
+      ${field(t("f.notes"), area("notes", p.notes))}
+      ${calcRow("dryDays", t("f.dryDays"), c)}`;
   },
   bisque(p, c, u) {
     const b = p.bisque || {};
@@ -693,13 +713,17 @@ const TAB_BODY = {
       ${field(t("f.homeFiring"), firingSelect("bisque.firingId", b.firingId, "bisque"))}`;
   },
   glaze(p, c, u) {
-    const g = p.glaze || {}, f = p.final || {};
+    const g = p.glaze || {};
     return `
       ${field(t("f.glazes"), chips("glaze.glazes", [...new Set([...listValues("glazes"), ...(g.glazes || [])])], g.glazes, (v) => v, { add: "glazes" }))}
       ${field(t("f.method"), chips("glaze.method", METHODS, g.method, (v) => t("method." + v)))}
       ${glazeBlock(p, c)}
       ${tripHistory(p, "glaze")}
-      ${field(t("f.homeFiring"), firingSelect("glaze.firingId", g.firingId, "glaze"))}
+      ${field(t("f.homeFiring"), firingSelect("glaze.firingId", g.firingId, "glaze"))}`;
+  },
+  final(p, c, u) {
+    const f = p.final || {};
+    return `
       <span class="lbl">${t("f.dimsFinal")} (${esc(u)})</span>
       ${dims("final", f, u, shapeFields(p))}
       ${calcRow("shrinkF", t("f.shrinkFinal"), c)}
@@ -1325,14 +1349,14 @@ const SHEET_VIEWS = {
     if (!ph) { setTimeout(closeSheet); return ""; }
     const isPiece = SHEET.coll === "pieces";
     return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button>
-      <div class="big">${img(ph, "big-img", false)}</div>
+      <div class="big"${SHEET.coll === "pieces" ? ` data-hold="photo:${esc(ph.id)}"` : ""}>${img(ph, "big-img", false)}</div>
       ${isPiece ? `
         ${field(t("f.photoStage"), chips("ph.stage", STAGES, ph.stage, (v) => t("stage." + v), { single: true }))}
         ${field(t("f.photoTags"), chips("ph.tags", [...new Set([...listValues("tags"), ...(ph.tags || [])])], ph.tags, (v) => label("tag", v), { add: "tags" }))}
         <label class="field"><span>${t("f.date")}</span><input type="date" data-ph="at" value="${esc(ph.at || "")}"></label>
         <div class="row">${ROUTE.name !== "piece" ? `<a class="btn primary" href="#/piece/${esc(rec.id)}">${t("btn.openPiece")}</a>` : ""}
           ${rec.cover !== ph.id ? `<button class="btn" data-act="ph-cover">★ ${t("btn.cover")}</button>` : ""}
-          <label class="btn"><input type="file" accept="image/*" hidden data-upload="replace">${t("btn.replace")}</label>
+          <button class="btn" data-act="ph-menu">${t("btn.replace")}</button>
           <button class="btn danger" data-act="ph-delete">${t("btn.delete")}</button></div>` : ""}`;
   },
   /** Hold a photo: swap it for another, make it the cover, or delete it. */
@@ -1340,9 +1364,12 @@ const SHEET_VIEWS = {
     const { rec, ph } = sheetPhoto();
     if (!ph) { setTimeout(closeSheet); return ""; }
     return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button>
-      <div class="menu-head">${img(ph, "menu-img")}<span>${t("stage." + ph.stage)}</span></div>
+      <div class="menu-head">${img(ph, "menu-img")}<span>${esc(dateText(ph.at, true))}</span></div>
+      ${field(t("f.photoStage"), chips("ph.stage", STAGES, ph.stage, (v) => t("stage." + v), { single: true }))}
       <div class="menu">
-        <label class="btn wide"><input type="file" accept="image/*" hidden data-upload="replace">${ICON.image} ${t("btn.replacePhoto")}</label>
+        <span class="lbl">${t("btn.replacePhoto")}</span>
+        <div class="grid2"><label class="btn"><input type="file" accept="image/*" capture="environment" hidden data-upload="replace">${ICON.camera} ${t("btn.camera")}</label>
+          <label class="btn"><input type="file" accept="image/*" hidden data-upload="replace">${ICON.image} ${t("btn.album")}</label></div>
         ${rec.cover !== ph.id ? `<button class="btn wide" data-act="ph-cover">★ ${t("btn.cover")}</button>` : ""}
         <button class="btn danger wide" data-act="ph-delete">${ICON.trash} ${t("btn.deletePhoto")}</button>
       </div>`;
@@ -1537,6 +1564,7 @@ document.addEventListener("click", async (e) => {
     case "piece-filter": PIECE_FILTER = el.dataset.val; render(true); return;
     case "piece-tag": PIECE_TAG = PIECE_TAG === el.dataset.val ? null : el.dataset.val; render(true); return;
     case "piece-tab": PIECE_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
+    case "gw-tab": GW_TAB = el.dataset.val; render(true); return;
     case "to-glaze": { const id = ROUTE.id; PIECE_TAB_FOR = id; PIECE_TAB = "glaze"; return; }   // the link carries on to the piece
     case "costs-tab": COSTS_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
     case "fire-where": FIRE_WHERE = el.dataset.val; render(true); return;
@@ -1580,6 +1608,7 @@ document.addEventListener("click", async (e) => {
       if (SHEET.kind === "photoMenu") { closeSheet(); render(true); } else drawSheet();
       return;
     }
+    case "ph-menu": openSheet({ kind: "photoMenu", coll: "pieces", id: SHEET.id, pid: SHEET.pid }); return;
     case "menu-delete": { const { coll, id } = SHEET; closeSheet(); return deleteRecord(coll, id); }
     case "ph-delete": {
       if (!confirm(t("confirm.deletePhoto"))) return;
@@ -1679,7 +1708,7 @@ function longPress(el) {
   pressedChip = null;
   if (el.dataset.hold) {
     const [coll, id] = el.dataset.hold.split(":");
-    if (coll === "photo") openSheet({ kind: "photoMenu", coll: "pieces", id: ROUTE.id, pid: id });
+    if (coll === "photo") openSheet({ kind: "photoMenu", coll: "pieces", id: SHEET && SHEET.kind === "photo" ? SHEET.id : ROUTE.id, pid: id });
     else if (DB[coll] && DB[coll][id]) openSheet({ kind: "recordMenu", coll, id });
     return;
   }
@@ -1765,12 +1794,81 @@ function onChip(el, rec) {
   changed(rec, true);
 }
 
+/* Every piece photo is square. Before one is saved it opens in a square frame: drag to move it,
+ * pinch or use the slider to zoom, then Use photo. Resolves with the cropped file, or null. */
+function cropSquare(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onerror = () => { URL.revokeObjectURL(url); resolve(file); };   // can't read it here: keep it as it is
+    im.onload = () => {
+      const box = document.createElement("div");
+      box.className = "crop";
+      box.innerHTML = `<div class="crop-frame"><img alt="" draggable="false"></div>
+        <input type="range" class="crop-zoom" min="1" max="4" step="0.01" value="1" aria-label="${t("crop.zoom")}">
+        <p>${t("crop.hint")}</p>
+        <div class="crop-btns"><button class="btn" data-c="cancel">${t("btn.cancel")}</button><button class="btn primary" data-c="use">${t("crop.use")}</button></div>`;
+      document.body.appendChild(box);
+      const frame = $(".crop-frame", box), pic = $("img", frame), slider = $(".crop-zoom", box);
+      pic.src = url;
+      const W = im.naturalWidth, H = im.naturalHeight;
+      let S = frame.clientWidth, base = S / Math.min(W, H), z = 1, ox = 0, oy = 0;
+      const scale = () => base * z;
+      const clamp = () => { ox = Math.min(0, Math.max(S - W * scale(), ox)); oy = Math.min(0, Math.max(S - H * scale(), oy)); };
+      const draw = () => { clamp(); pic.style.width = W * scale() + "px"; pic.style.transform = `translate(${ox}px, ${oy}px)`; slider.value = z; };
+      const zoomTo = (nz, px, py) => {   // keep the point under the fingers where it is
+        nz = Math.min(4, Math.max(1, nz));
+        const u = (px - ox) / scale(), v = (py - oy) / scale();
+        z = nz; ox = px - u * scale(); oy = py - v * scale(); draw();
+      };
+      ox = (S - W * scale()) / 2; oy = (S - H * scale()) / 2; draw();
+      const pts = new Map(); let pinch = null;
+      const local = (e) => { const r = frame.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+      frame.addEventListener("pointerdown", (e) => { try { frame.setPointerCapture(e.pointerId); } catch (err) {} pts.set(e.pointerId, local(e)); pinch = null; });
+      frame.addEventListener("pointermove", (e) => {
+        if (!pts.has(e.pointerId)) return;
+        const prev = pts.get(e.pointerId), cur = local(e);
+        pts.set(e.pointerId, cur);
+        if (pts.size === 1) { ox += cur[0] - prev[0]; oy += cur[1] - prev[1]; draw(); return; }
+        const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (!pinch) { pinch = { d, z }; return; }
+        zoomTo(pinch.z * d / pinch.d, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+      });
+      const up = (e) => { pts.delete(e.pointerId); pinch = null; };
+      frame.addEventListener("pointerup", up); frame.addEventListener("pointercancel", up);
+      frame.addEventListener("wheel", (e) => { e.preventDefault(); const [x, y] = local(e); zoomTo(z * (e.deltaY < 0 ? 1.08 : 0.93), x, y); }, { passive: false });
+      slider.addEventListener("input", () => zoomTo(Number(slider.value), S / 2, S / 2));
+      const done = (out) => { box.remove(); URL.revokeObjectURL(url); resolve(out); };
+      box.addEventListener("click", (e) => {
+        const c = e.target.closest("[data-c]");
+        if (!c) return;
+        if (c.dataset.c === "cancel") return done(null);
+        const side = S / scale(), n = Math.round(Math.min(1800, side));
+        const cv = document.createElement("canvas"); cv.width = cv.height = n;
+        cv.getContext("2d").drawImage(im, -ox / scale(), -oy / scale(), side, side, 0, 0, n, n);
+        cv.toBlob((b) => done(b ? new File([b], "square.jpg", { type: "image/jpeg" }) : file), "image/jpeg", 0.9);
+      });
+    };
+    im.src = url;
+  });
+}
+/** Crop each chosen photo in turn; the ones cancelled are left out. */
+async function cropAll(files) {
+  const out = [];
+  for (const f of files) { const c = await cropSquare(f); if (c) out.push(c); }
+  return out;
+}
 async function onUpload(input) {
   const files = Array.from(input.files || []);
   input.value = "";
   if (!files.length) return;
   const target = input.dataset.upload;
   try {
+    if (["replace", "piece", "newpiece"].includes(target)) {   // piece photos are square
+      const sheet = SHEET;
+      files.splice(0, files.length, ...(await cropAll(target === "replace" ? files.slice(0, 1) : files)));
+      if (!files.length) return;
+      SHEET = sheet;
+    }
     if (target === "replace") {   // same place in the list, same stage and tags, cover stays the cover
       const { rec: r0, ph: old } = sheetPhoto();
       if (!old) return;
@@ -1790,7 +1888,7 @@ async function onUpload(input) {
         const ph = await Photos.fromFile(f, { stage, tags: [...(p.tags || [])] });
         p = DB.pieces[p.id] || p;   // a sync may have swapped the object while the photo was being saved
         p.photos = [...(p.photos || []), ph];
-        if (!p.cover || stage === "glazed") p.cover = ph.id;
+        if (!p.cover || stage === "final") p.cover = ph.id;
       }
       DB.pieces[p.id] = p;
       touch(p); save();
@@ -1854,7 +1952,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "26";
+const APP_VERSION = "27";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });

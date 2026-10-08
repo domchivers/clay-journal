@@ -429,3 +429,31 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .hist-row a { color: var(--ink); }
 .hist-row i { font-style: normal; color: var(--accent); }
 .fab .btn:not(.primary) { background: var(--card); }
+
+/* Greenware: clay first, then the measurements under their own small tabs */
+.tabbody > .lbl.first { margin-top: 0; }
+.measure { margin: 16px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); padding: 4px 12px 12px; }
+.subtabs-row { margin: 0 0 4px; border-bottom: 1px solid var(--line); }
+.subtabs { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.subtabs button { display: flex; align-items: center; gap: 4px; border: 0; background: none; padding: 10px 0 9px; margin-bottom: -1px; font: inherit; font-size: 14px; color: var(--muted); white-space: nowrap; cursor: pointer; border-bottom: 2px solid transparent; }
+.subtabs button[aria-pressed="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+.subtabs .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--wet); }
+.shape-row { margin: 16px 0 6px; }
+.shape-row .lbl { margin: 0; }
+.shape-row .unit { width: auto; padding: 4px 8px; }
+.measure .field:first-of-type { margin-top: 10px; }
+
+/* square photos: the piece's main photo, and the crop step before a photo is saved */
+.hero.sq { aspect-ratio: 1; max-height: none; }
+.crop { position: fixed; inset: 0; z-index: 60; background: #100e0c; color: #f4efe6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; }
+.crop-frame { position: relative; width: min(100%, 70vh); aspect-ratio: 1; overflow: hidden; touch-action: none; outline: 2px solid rgba(255, 255, 255, .85); cursor: grab; }
+.crop-frame img { position: absolute; left: 0; top: 0; max-width: none; height: auto; background: none; user-select: none; -webkit-user-drag: none; }
+.crop-zoom { width: min(100%, 70vh); accent-color: #f4efe6; }
+.crop p { margin: 0; font-size: 13px; color: #bcb0a2; }
+.crop-btns { display: flex; gap: 10px; width: min(100%, 70vh); }
+.crop-btns .btn { flex: 1; justify-content: center; }
+.crop-btns .btn:not(.primary) { background: transparent; color: #f4efe6; border-color: #4a433b; }
+.crop-btns .btn.primary { background: #f4efe6; color: #100e0c; border-color: #f4efe6; }
+.menu .grid2 .btn { justify-content: center; }
+.menu .lbl { margin: 4px 0 0; }
+.ph-hint { margin: 0 0 6px; font-size: 12.5px; }
