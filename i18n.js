@@ -134,7 +134,7 @@ const STRINGS = {
     "f.source": "Source", "f.myNotes": "My notes", "f.usedBy": "Used by", "f.dateFrom": "From", "f.dateTo": "To",
     "f.handle": "Handle (optional)", "f.handleCut": "Handle length when cut", "f.handleDims": "Handle once attached",
     "f.shrinkHandleB": "Handle shrinkage wet → bisque", "f.shrinkHandleF": "Handle shrinkage wet → final",
-    "f.addStage": "New photos go to", "ph.holdHint": "Hold a photo to change its stage, replace it or delete it.", "avg": "avg", "addTag": "Add tag…", "addGlaze": "Add glaze…",
+    "f.addStage": "New photos go to", "ph.holdHint": "Swipe for more photos. Hold one to change its stage, replace it or delete it. New photos go to the stage of the tab that's open.", "avg": "avg", "addTag": "Add tag…", "addGlaze": "Add glaze…",
 
     "stage.wet": "Greenware", "stage.bisque": "Bisque", "stage.glazed": "Glaze", "stage.final": "Final",
     "tech.wheel": "Wheel throwing", "tech.hand": "Hand-building", "tech.coil": "Coil", "tech.slab": "Slab", "tech.pinch": "Pinch", "tech.marbled": "Marbled clay (绞胎)",
@@ -304,7 +304,7 @@ const STRINGS = {
     "f.source": "来源", "f.myNotes": "我的笔记", "f.usedBy": "被引用", "f.dateFrom": "从", "f.dateTo": "到",
     "f.handle": "把手（可选）", "f.handleCut": "把手裁切时的长度", "f.handleDims": "装好后的把手",
     "f.shrinkHandleB": "把手收缩率 湿坯 → 素烧", "f.shrinkHandleF": "把手收缩率 湿坯 → 成品",
-    "f.addStage": "新照片归入", "ph.holdHint": "长按照片可以修改阶段、替换或删除。", "avg": "平均", "addTag": "添加标签…", "addGlaze": "添加釉料…",
+    "f.addStage": "新照片归入", "ph.holdHint": "左右滑动查看更多照片。长按照片可以修改阶段、替换或删除。新照片会归入当前打开的阶段。", "avg": "平均", "addTag": "添加标签…", "addGlaze": "添加釉料…",
 
     "stage.wet": "泥坯", "stage.bisque": "素烧", "stage.glazed": "上釉", "stage.final": "成品",
     "tech.wheel": "拉坯", "tech.hand": "手捏成型", "tech.coil": "泥条盘筑", "tech.slab": "泥板成型", "tech.pinch": "捏塑", "tech.marbled": "绞胎",

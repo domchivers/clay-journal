@@ -671,21 +671,14 @@ VIEWS.piece = (r) => {
   const st = stageOf(p), u = p.unit || SETTINGS.unit, c = calc(p);
   if (PIECE_TAB_FOR !== p.id) { PIECE_TAB_FOR = p.id; PIECE_TAB = st === "glazed" ? "glaze" : st; }
   const tab = PIECE_TABS.includes(PIECE_TAB) ? PIECE_TAB : "wet";
-  const addStage = r.addStage || st;
   const photos = p.photos || [];
   return `<div data-rec data-coll="pieces" data-id="${esc(p.id)}" class="editor">
-    <div class="hero sq"${photos.length ? ` data-hold="photo:${esc(coverOf(p).id)}"` : ""}>${photos.length ? img(coverOf(p), "hero-img", false) : `<label class="hero-add"><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}<span>${t("btn.takePhoto")}</span></label>`}</div>
+    <div class="gallery-strip">${[...photos].sort((a, b) => (b.id === p.cover) - (a.id === p.cover)).map((ph) => `<div class="slide" data-hold="photo:${esc(ph.id)}">${img(ph, "", false)}<span class="pill st-${ph.stage}">${t("stage." + ph.stage)}</span>${ph.id === p.cover ? '<i class="star">★</i>' : ""}${ph.url ? "" : '<i class="dot" title="not uploaded"></i>'}</div>`).join("")}
+      <div class="slide add"><label><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}<span>${t("btn.camera")}</span></label><label><input type="file" accept="image/*" multiple hidden data-upload="piece">${ICON.image}<span>${t("btn.album")}</span></label></div></div>
+    ${photos.length ? `<p class="meta ph-hint">${t("ph.holdHint")}</p>` : ""}
     <input class="title-in" type="text" data-f="title" value="${esc(p.title || "")}" placeholder="${esc(t("untitled"))}">
     <div class="ptabs">${PIECE_TABS.map((k) => `<button data-act="piece-tab" data-val="${k}" aria-pressed="${k === tab}">${esc(tabLabel(k))}${tabFilled(p, k) ? `<i class="dot st-${k === "glaze" ? "glazed" : k}"></i>` : ""}</button>`).join("")}</div>
     <div class="tabbody">${TAB_BODY[tab](p, c, u)}</div>
-
-    <div class="photos">
-      <div class="ph-grid">${photos.map((ph) => `<button class="ph" type="button" data-hold="photo:${esc(ph.id)}">${img(ph)}<span class="pill st-${ph.stage}">${t("stage." + ph.stage)}</span>${ph.id === p.cover ? '<i class="star">★</i>' : ""}${ph.url ? "" : '<i class="dot" title="not uploaded"></i>'}</button>`).join("")}
-        <label class="ph add"><input type="file" accept="image/*" capture="environment" hidden data-upload="piece">${ICON.camera}</label>
-        <label class="ph add"><input type="file" accept="image/*" multiple hidden data-upload="piece">${ICON.image}</label></div>
-      ${photos.length ? `<p class="meta ph-hint">${t("ph.holdHint")}</p>` : ""}
-      <div class="ph-stage"><span>${t("f.addStage")}</span>${chips("addStage", STAGES, addStage, (v) => t("stage." + v), { single: true })}</div>
-    </div>
 
     <button class="btn danger wide" data-act="delete" data-coll="pieces">${t("btn.delete")}</button>
   </div>`;
@@ -1892,7 +1885,7 @@ document.addEventListener("click", async (e) => {
     case "swipe-delete": return deleteRecord(el.dataset.coll, el.dataset.id);
     case "piece-filter": PIECE_FILTER = el.dataset.val; render(true); return;
     case "piece-tag": PIECE_TAG = PIECE_TAG === el.dataset.val ? null : el.dataset.val; render(true); return;
-    case "piece-tab": PIECE_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
+    case "piece-tab": PIECE_TAB = el.dataset.val; render(true); return;
     case "gw-tab": GW_TAB = el.dataset.val; render(true); return;
     case "to-glaze": { const id = ROUTE.id; PIECE_TAB_FOR = id; PIECE_TAB = "glaze"; return; }   // the link carries on to the piece
     case "costs-tab": COSTS_TAB = el.dataset.val; render(); window.scrollTo(0, 0); return;
@@ -2211,7 +2204,7 @@ async function onUpload(input) {
     }
     if (target === "newpiece" || target === "piece") {
       let p = target === "piece" ? DB.pieces[ROUTE.id] : newRecord("pieces", { started: today(), unit: SETTINGS.unit });
-      const stage = target === "newpiece" ? "wet" : (ROUTE.addStage || stageOf(p));
+      const stage = target === "newpiece" ? "wet" : ({ wet: "wet", bisque: "bisque", glaze: "glazed", final: "final" }[PIECE_TAB] || stageOf(p));
       for (const f of files) {
         const ph = await Photos.fromFile(f, { stage, tags: [...(p.tags || [])] });
         p = DB.pieces[p.id] || p;   // a sync may have swapped the object while the photo was being saved

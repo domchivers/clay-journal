@@ -231,7 +231,7 @@ img.missing { background: repeating-linear-gradient(45deg, var(--soft), var(--so
 .ptabs .dot.st-wet { background: var(--wet); } .ptabs .dot.st-bisque { background: var(--bisque); }
 .ptabs .dot.st-glazed { background: var(--glazed); } .ptabs .dot.st-final { background: var(--final); }
 .ptabs .dot.st-design, .ptabs .dot.st-sales { background: var(--accent); }
-.tabbody { padding: 0 20px 6px; }
+.tabbody { padding: 0 20px 6px; min-height: 100vh; }   /* a shorter tab doesn't pull the page up under you */
 .tabbody > .field:first-child, .tabbody > .lbl:first-child { margin-top: 0; }
 .photos { border-top: 1px solid var(--line); margin: 18px 20px 0; padding-top: 14px; }
 .ph.add { display: grid; place-items: center; border: 1px dashed var(--line); color: var(--muted); }
@@ -541,3 +541,16 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .plan-glazes .chip.on button { background: none; border: 0; color: var(--faint); font-size: 16px; padding: 0 0 0 5px; cursor: pointer; }
 .plan-glazes .chip.add svg { width: 14px; height: 14px; }
 .pick-tiles { padding: 0; margin: 4px 0 8px !important; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+
+/* a piece's photos: a swipeable row, the cover first, camera and album at the end */
+.gallery-strip { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 8px 20px 4px; scroll-padding: 0 20px; }
+.gallery-strip::-webkit-scrollbar { display: none; }
+.slide { position: relative; flex: 0 0 min(64vw, 280px); aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--soft); scroll-snap-align: start; }
+.slide img { width: 100%; height: 100%; }
+.slide .pill { position: absolute; left: 8px; bottom: 8px; font-size: 11px; color: #fff; background: rgba(20, 16, 12, .55); padding: 2px 8px; border-radius: 999px; }
+.slide .star { position: absolute; right: 8px; top: 6px; color: #fff; font-style: normal; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); }
+.slide .dot { position: absolute; right: 9px; bottom: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px rgba(255, 255, 255, .8); }
+.slide.add { flex-basis: min(32vw, 140px); display: flex; flex-direction: column; gap: 6px; background: none; aspect-ratio: auto; }
+.slide.add label { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 13px; cursor: pointer; }
+.gallery-strip:not(:has(.slide:not(.add))) .slide.add { flex-basis: 100%; flex-direction: row; aspect-ratio: 3; }
+.ph-hint { padding: 0 20px; margin: 2px 0 6px; }
