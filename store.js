@@ -56,7 +56,7 @@ function migrate(db) {
    * Underglaze, with Designs and Inspiration as tabs that can be moved like the rest. Times are
    * fixed so every copy converts the same way. */
   for (const it of Object.values(db.library || {})) {
-    if (it.kind === "clay" && !Array.isArray(it.clays)) { it.clays = it.mix || (it.name ? [it.name] : []); it.name = ""; delete it.mix; }
+    if (it.kind === "clay" && !Array.isArray(it.clays)) it.clays = (it.mix || (it.name ? [it.name] : [])).slice();   // name and mix stay as they were
   }
   const lk = db.lists && db.lists.libkinds;
   if (lk) for (const [v, at] of [["design", 0.1], ["insp", 0.2], ["underglaze", 1.5]]) {

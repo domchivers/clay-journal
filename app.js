@@ -125,10 +125,12 @@ function glazeFigures(p) {
 }
 /** Days from throwing to trimming, once both dates are in (an old typed number otherwise). */
 function dryText(p) {
-  const a = p.started, b = (p.trim || {}).date;
-  if (a && b) { const d = Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000); if (d >= 0) return t("f.days", { n: d }); }
-  const old = (p.wet || {}).dryDays;
-  return has(old) ? t("f.days", { n: old }) : "–";
+  const a = p.started, b = (p.trim || {}).date, typed = (p.wet || {}).dryDays;
+  if (a && b) {
+    const d = Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000);
+    if (d >= 0) return has(typed) && Number(typed) !== d ? `${t("f.days", { n: d })} (${t("f.youNoted", { n: typed })})` : t("f.days", { n: d });
+  }
+  return has(typed) ? t("f.days", { n: typed }) : "–";   // a number typed before the dates worked it out
 }
 /** Weight lost since the piece was made: from the trimmed weight when there is one, else as thrown. */
 function lossText(p, o) {
@@ -447,7 +449,7 @@ function pieceCost(p) {
   }
   for (const key of ["bisque", "glaze"]) {
     const fid = p[key] && p[key].firingId;
-    if (!fid) continue;
+    if (!fid || !DB.firings[fid]) continue;   // an old studio firing that became a drop-off is costed through its trip instead
     const sh = firingShare(fid, p);
     out.fires.push(Object.assign({ fid, f: DB.firings[fid] }, sh));
     out.firing += sh.fee; out.travel += sh.travel;
@@ -986,7 +988,7 @@ const entryClays = (it) => it.clays || [];
 const layersOf = (it) => (it.layers || []).filter((l) => l && l.glaze);
 const layersText = (it) => layersOf(it).map((l) => `${l.glaze}${has(l.coats) ? " × " + l.coats : ""}`).join(" → ");
 const glazesOf = (it) => [...new Set([...(it.kind === "glaze" && it.name ? [it.name] : []), ...layersOf(it).map((l) => l.glaze), ...(it.glazes || [])])];
-const libName = (it) => it.name ? it.name : it.kind === "glaze" && layersOf(it).length ? layersText(it) : it.kind === "clay" && entryClays(it).length ? mixLabel(entryClays(it)) : t("untitled");
+const libName = (it) => it.kind === "clay" && it.name && it.name === entryClays(it).join(" + ") ? mixLabel(entryClays(it)) : it.name ? it.name : it.kind === "glaze" && layersOf(it).length ? layersText(it) : it.kind === "clay" && entryClays(it).length ? mixLabel(entryClays(it)) : t("untitled");
 const safeColor = (c) => /^#[0-9a-f]{3,8}$/i.test(c || "") ? c : "";
 /** A glaze's entry (one with a colour first), or a clay's (for exactly that clay or mix). */
 function libFor(kind, name, mix) {
@@ -1619,6 +1621,8 @@ const SHEET_VIEWS = {
     return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button>
       <div class="menu-head">${img(ph, "menu-img")}<span>${esc(dateText(ph.at, true))}</span></div>
       ${field(t("f.photoStage"), chips("ph.stage", STAGES, ph.stage, (v) => t("stage." + v), { single: true }))}
+      ${field(t("f.photoTags"), chips("ph.tags", [...new Set([...listValues("tags"), ...(ph.tags || [])])], ph.tags, (v) => label("tag", v), { add: "tags" }))}
+      <label class="field"><span>${t("f.date")}</span><input type="date" data-ph="at" value="${esc(ph.at || "")}"></label>
       <div class="menu">
         <span class="lbl">${t("btn.replacePhoto")}</span>
         <div class="grid2"><label class="btn"><input type="file" accept="image/*" capture="environment" hidden data-upload="replace">${ICON.camera} ${t("btn.camera")}</label>
