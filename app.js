@@ -1214,7 +1214,7 @@ function planBlock(d) {
     const x = key === "image" ? (d.image ? { ph: d.image } : null) : planPhoto(d, key === "planBisque" ? "bisque" : "final");
     if (x && x.ph) return `<div class="plan-filled"><div class="plan-slot">${img(x.ph)}</div>
       <div class="plan-what">${x.p ? `<a href="#/piece/${esc(x.p.id)}">${esc(pieceName(x.p))} ›</a>` : `<span class="meta">${t("plan.ownPhoto")}</span>`}
-        <button class="linkish" data-act="plan-del" data-val="${key}">${t("plan.change")}</button></div></div>`;
+        <span class="row">${x.p ? "" : `<button class="linkish" data-act="image-edit" data-val="${key}">${t("photo.editShort")}</button>`}<button class="linkish" data-act="plan-del" data-val="${key}">${t("plan.change")}</button></span></div></div>`;
     return `<div class="plan-choose">${pick ? `<button class="btn small" data-act="plan-pick" data-val="${pick}">${ICON.pieces} ${t("plan.fromPieces")}</button>` : ""}
       <label class="btn small"><input type="file" accept="image/*" hidden data-upload="${target}">${ICON.camera} ${t("plan.upload")}</label></div>`;
   };
@@ -1286,7 +1286,7 @@ function imageBlock(rec, target) {
   const wide = ["glaze", "underglaze", "clay"].includes(rec.kind) ? " wide" : "";
   if (!rec.image) return `<label class="photo-add${wide}">${input}${ICON.camera}<span>${t("btn.addPhoto")}</span></label>`;
   return `<div class="photo-field${wide}">${img(rec.image, "", false)}</div>
-    <div class="photo-actions"><label class="linkish">${input}${t("plan.change")}</label><button class="linkish" data-act="image-del">${t("btn.remove")}</button></div>`;
+    <div class="photo-actions"><button class="linkish" data-act="image-edit" data-val="image">${t("photo.editShort")}</button><label class="linkish">${input}${t("plan.change")}</label><button class="linkish" data-act="image-del">${t("btn.remove")}</button></div>`;
 }
 VIEWS.design = (r) => {
   const d = DB.designs[r.id];
@@ -1708,6 +1708,7 @@ const SHEET_VIEWS = {
         <div class="grid2"><label class="btn"><input type="file" accept="image/*" capture="environment" hidden data-upload="replace">${ICON.camera} ${t("btn.camera")}</label>
           <label class="btn"><input type="file" accept="image/*" hidden data-upload="replace">${ICON.image} ${t("btn.album")}</label></div>
         ${rec.cover !== ph.id ? `<button class="btn wide" data-act="ph-cover">★ ${t("btn.cover")}</button>` : ""}
+        <button class="btn wide" data-act="ph-edit">${t("photo.edit")}</button>
         <button class="btn danger wide" data-act="ph-delete">${ICON.trash} ${t("btn.deletePhoto")}</button>
       </div>`;
   },
@@ -1764,6 +1765,7 @@ const SHEET_VIEWS = {
 };
 
 // ---------- editing
+const recOfColl = (el) => { const box = el.closest("[data-rec]"); return box ? box.dataset.coll : null; };
 function recOf(el) {
   const box = el.closest("[data-rec]");
   return box ? DB[box.dataset.coll][box.dataset.id] : null;
@@ -2042,6 +2044,26 @@ document.addEventListener("click", async (e) => {
       if (SHEET.kind === "photoMenu") { closeSheet(); render(true); } else drawSheet();
       return;
     }
+    case "ph-edit": {   // the photo again in the frame: crop, rotate, and it takes the old one's place
+      const { rec: r0, ph: old } = sheetPhoto();
+      closeSheet();
+      const nph = await editPhoto(old, 1);
+      if (!nph) return;
+      const r = DB.pieces[r0.id] || r0;
+      r.photos = (r.photos || []).map((x) => x.id === old.id ? nph : x);
+      if (r.cover === old.id) r.cover = nph.id;
+      Photos.forget([old]); touch(r); save(); render(true); toast(t("photo.edited"));
+      return;
+    }
+    case "image-edit": {
+      const key = el.dataset.val, coll = recOfColl(el), r0 = rec, old = r0 && r0[key];
+      if (!old) return;
+      const nph = await editPhoto(old, key === "image" ? frameFor(r0, coll) : 1);
+      if (!nph) return;
+      const r = DB[coll][r0.id] || r0;
+      r[key] = nph; Photos.forget([old]); touch(r); save(); render(true); toast(t("photo.edited"));
+      return;
+    }
     case "ph-menu": openSheet({ kind: "photoMenu", coll: "pieces", id: SHEET.id, pid: SHEET.pid }); return;
     case "menu-delete": { const { coll, id } = SHEET; closeSheet(); return deleteRecord(coll, id); }
     case "ph-delete": {
@@ -2230,8 +2252,9 @@ function onChip(el, rec) {
   changed(rec, true);
 }
 
-/* Every piece photo is square. Before one is saved it opens in a square frame: drag to move it,
- * pinch or use the slider to zoom, then Use photo. Resolves with the cropped file, or null. */
+/* Every photo goes through a frame before it's saved: drag to move it, pinch or slide to zoom,
+ * rotate a quarter turn at a time, then Use photo. The frame is square, 3:2 for glazes, or the
+ * photo's own shape ("auto", for inspiration). Resolves with the new file, or null if cancelled. */
 function cropSquare(file, ratio = 1) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file), im = new Image();
@@ -2240,25 +2263,31 @@ function cropSquare(file, ratio = 1) {
       const box = document.createElement("div");
       box.className = "crop";
       box.innerHTML = `<div class="crop-frame"><img alt="" draggable="false"></div>
-        <input type="range" class="crop-zoom" min="1" max="4" step="0.01" value="1" aria-label="${t("crop.zoom")}">
+        <div class="crop-tools"><input type="range" class="crop-zoom" min="1" max="4" step="0.01" value="1" aria-label="${t("crop.zoom")}">
+          <button class="btn" data-c="rotate" aria-label="${t("crop.rotate")}">⟳ ${t("crop.rotate")}</button></div>
         <p>${t("crop.hint")}</p>
         <div class="crop-btns"><button class="btn" data-c="cancel">${t("btn.cancel")}</button><button class="btn primary" data-c="use">${t("crop.use")}</button></div>`;
       document.body.appendChild(box);
       const frame = $(".crop-frame", box), pic = $("img", frame), slider = $(".crop-zoom", box);
-      frame.style.aspectRatio = String(ratio);
-      pic.src = url;
-      const W = im.naturalWidth, H = im.naturalHeight;
-      const S = frame.clientWidth, SH = S / ratio;   // the frame, wide by high
-      let base = Math.max(S / W, SH / H), z = 1, ox = 0, oy = 0;
+      let src = im, W = im.naturalWidth, H = im.naturalHeight;   // the picture being framed (a canvas once rotated)
+      let R = 1, S = 0, SH = 0, base = 1, z = 1, ox = 0, oy = 0;
       const scale = () => base * z;
       const clamp = () => { ox = Math.min(0, Math.max(S - W * scale(), ox)); oy = Math.min(0, Math.max(SH - H * scale(), oy)); };
       const draw = () => { clamp(); pic.style.width = W * scale() + "px"; pic.style.transform = `translate(${ox}px, ${oy}px)`; slider.value = z; };
+      const layout = () => {   // size the frame to fit the screen, and fill it with the picture
+        R = ratio === "auto" ? W / H : ratio;
+        const maxW = Math.min(box.clientWidth - 32, 720), maxH = window.innerHeight * 0.58;
+        S = Math.min(maxW, maxH * R); SH = S / R;
+        frame.style.width = S + "px"; frame.style.height = SH + "px";
+        base = Math.max(S / W, SH / H); z = 1;
+        ox = (S - W * scale()) / 2; oy = (SH - H * scale()) / 2; draw();
+      };
       const zoomTo = (nz, px, py) => {   // keep the point under the fingers where it is
         nz = Math.min(4, Math.max(1, nz));
         const u = (px - ox) / scale(), v = (py - oy) / scale();
         z = nz; ox = px - u * scale(); oy = py - v * scale(); draw();
       };
-      ox = (S - W * scale()) / 2; oy = (SH - H * scale()) / 2; draw();
+      pic.src = url; layout();
       const pts = new Map(); let pinch = null;
       const local = (e) => { const r = frame.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
       frame.addEventListener("pointerdown", (e) => { try { frame.setPointerCapture(e.pointerId); } catch (err) {} pts.set(e.pointerId, local(e)); pinch = null; });
@@ -2280,15 +2309,40 @@ function cropSquare(file, ratio = 1) {
         const c = e.target.closest("[data-c]");
         if (!c) return;
         if (c.dataset.c === "cancel") return done(null);
+        if (c.dataset.c === "rotate") {   // a quarter turn clockwise
+          const cv = document.createElement("canvas"); cv.width = H; cv.height = W;
+          const g = cv.getContext("2d"); g.translate(H, 0); g.rotate(Math.PI / 2); g.drawImage(src, 0, 0);
+          src = cv; [W, H] = [H, W]; pic.src = cv.toDataURL("image/jpeg", 0.92); layout();
+          return;
+        }
         const sw = S / scale(), sh = SH / scale(), n = Math.round(Math.min(1800, sw));
-        const cv = document.createElement("canvas"); cv.width = n; cv.height = Math.round(n / ratio);
-        cv.getContext("2d").drawImage(im, -ox / scale(), -oy / scale(), sw, sh, 0, 0, cv.width, cv.height);
-        cv.toBlob((b) => done(b ? new File([b], "square.jpg", { type: "image/jpeg" }) : file), "image/jpeg", 0.9);
+        const cv = document.createElement("canvas"); cv.width = n; cv.height = Math.round(n / R);
+        cv.getContext("2d").drawImage(src, -ox / scale(), -oy / scale(), sw, sh, 0, 0, cv.width, cv.height);
+        cv.toBlob((b) => done(b ? new File([b], "photo.jpg", { type: "image/jpeg" }) : file), "image/jpeg", 0.9);
       });
     };
     im.src = url;
   });
 }
+/** A saved photo as a file again: the copy on this phone, else the one in the cloud. */
+async function photoFile(ph) {
+  const b = await Photos.get(ph.id);
+  if (b) return new File([b], "photo.jpg", { type: b.type || "image/jpeg" });
+  if (ph.url) { try { const r = await fetch(ph.url); if (r.ok) return new File([await r.blob()], "photo.jpg", { type: "image/jpeg" }); } catch (e) {} }
+  return null;
+}
+/** Open a saved photo in the frame again; gives the edited photo (same stage, tags and date), or null. */
+async function editPhoto(ph, ratio, fields) {
+  const f = await photoFile(ph);
+  if (!f) { toast(t("photo.cantEdit")); return null; }
+  const out = await cropSquare(f, ratio);
+  if (!out) return null;
+  const nph = await Photos.fromFile(out, Object.assign({ stage: ph.stage, tags: [...(ph.tags || [])] }, fields || {}));
+  if (ph.at) nph.at = ph.at;
+  return nph;
+}
+/** What shape a record's main photo is framed in. */
+const frameFor = (rec, coll) => coll === "insps" ? "auto" : coll === "library" && ["glaze", "underglaze", "clay"].includes(rec.kind) ? 1.5 : 1;
 /** Crop each chosen photo in turn; the ones cancelled are left out. */
 async function cropAll(files, ratio) {
   const out = [];
@@ -2393,7 +2447,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "36";
+const APP_VERSION = "37";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });

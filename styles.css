@@ -586,3 +586,8 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .btn[disabled] { opacity: .45; }
 .shr-toggle { margin: 4px 0 2px; }
 .shr-toggle .btn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.crop-frame { aspect-ratio: auto; }
+.crop-tools { display: flex; align-items: center; gap: 12px; width: min(100%, 720px); }
+.crop-tools .crop-zoom { flex: 1; width: auto; }
+.crop-tools .btn { background: transparent; color: #f4efe6; border-color: #4a433b; flex: none; }
+.plan-what .row { gap: 14px; }
