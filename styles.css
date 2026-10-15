@@ -582,3 +582,5 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .photo-add.wide { height: 110px; }
 .menu .grid2 .btn[disabled] { opacity: .35; }
 .insp-pick { margin: 6px 0 14px; }
+.small-notes textarea { min-height: 0; }
+.btn[disabled] { opacity: .45; }

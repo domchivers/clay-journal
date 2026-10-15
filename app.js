@@ -1169,8 +1169,8 @@ function collectionView(it) {
       ${field(t("lib.name"), textIn("name", it.name, t("coll.namePh")))}
       <div class="grid2">${field(t("f.date"), dateIn("date", it.date))}${field(t("coll.count"), `<div class="static">${t("pieces.count", { n: ps.length })}</div>`)}</div>
       ${asks.length ? `<div class="calc"><span>${t("coll.askTotal")}${sold.length ? ` · ${t("coll.sold", { n: sold.length })}` : ""}</span><b>${esc(money(asks.reduce((a, b) => a + b, 0)))}</b></div>` : ""}
-      ${field(t("f.notes"), area("notes", it.notes, t("coll.notesPh")))}
-      <div class="row between"><span class="lbl">${t("coll.pieces")}</span><button class="btn small" data-act="coll-pick">${ICON.plus} ${t("btn.addPieces")}</button></div>
+      ${field(t("f.notes"), area("notes", it.notes, t("coll.notesPh")).replace('rows="3"', 'rows="2"'), "small-notes")}
+      <div class="row between"><span class="lbl">${t("coll.pieces")}</span><div class="row"><button class="btn small" data-act="coll-bydate">${t("coll.byDate")}</button><button class="btn small" data-act="coll-pick">${ICON.plus} ${t("btn.addPieces")}</button></div></div>
     </div>
     ${ps.length ? `<div class="pgrid titled">${ps.map(pieceTile).join("")}</div>` : `<div class="pad">${empty(t("coll.empty"))}</div>`}
     <button class="btn danger wide" data-act="delete" data-coll="library">${t("btn.delete")}</button>
@@ -1227,7 +1227,30 @@ function planBlock(d) {
       ${step(4, t("plan.final"), photoStep("planFinal", "plan-final", "final"))}
     </div><p class="meta">${t("plan.hint")}</p></div>`;
 }
+/** When a piece was made: the day it was thrown, else the day it was logged. */
+const madeOn = (p) => p.started || new Date(p.createdAt).toISOString().slice(0, 10);
+function byDateRange(sh) {
+  if (sh.mode === "period") return sh.from && sh.to ? [sh.from, sh.to].sort() : null;
+  if (!sh.month) return null;
+  const [y, m] = sh.month.split("-").map(Number), last = new Date(y, m, 0).getDate();
+  return [`${sh.month}-01`, `${sh.month}-${String(last).padStart(2, "0")}`];
+}
+function byDatePieces(sh) {
+  const it = DB.library[sh.id], r = byDateRange(sh), have = new Set(it.pieceIds || []);
+  if (!r) return [];
+  return sortedPieces().filter((p) => !have.has(p.id) && madeOn(p) >= r[0] && madeOn(p) <= r[1]);
+}
 const PLAN_SHEETS = {
+  collByDate() {
+    const sh = SHEET, n = byDatePieces(sh).length;
+    return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${t("coll.byDateTitle")}</h3>
+      <div class="chips">${["month", "period"].map((v) => `<button type="button" class="chip" data-act="bydate-mode" data-val="${v}" aria-pressed="${sh.mode === v}">${t("coll.mode." + v)}</button>`).join("")}</div>
+      ${sh.mode === "period"
+        ? `<div class="grid2">${field(t("f.dateFrom"), `<input type="date" data-sheet-f="from" value="${esc(sh.from || "")}">`)}${field(t("f.dateTo"), `<input type="date" data-sheet-f="to" value="${esc(sh.to || "")}">`)}</div>`
+        : field(t("coll.month"), `<input type="month" data-sheet-f="month" value="${esc(sh.month || "")}">`)}
+      <p class="meta">${t("coll.byDateHint")}</p>
+      <button class="btn primary wide" data-act="bydate-add" id="bydate-add"${n ? "" : " disabled"}>${n ? t("coll.add.count", { n }) : t("coll.noneThen")}</button>`;
+  },
   pickCollection() {
     const it = DB.library[SHEET.id], on = new Set(it.pieceIds || []);
     return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${esc(it.name || t("coll.untitled"))}</h3>
@@ -1780,6 +1803,7 @@ document.addEventListener("change", (e) => {
   if (el.dataset.setting) { SETTINGS[el.dataset.setting] = el.value.trim() || (el.dataset.setting === "currency" ? "£" : "cm"); saveSettings(); return; }
   if (el.dataset.gf) { SETTINGS.galleryFilters[el.dataset.gf] = el.value || null; saveSettings(); render(true); return; }
   if (el.dataset.ph) { const { rec, ph } = sheetPhoto(); if (ph) { ph[el.dataset.ph] = el.value; changed(rec, false); } return; }
+  if (el.dataset.sheetF && SHEET) { SHEET[el.dataset.sheetF] = el.value; drawSheet(); return; }
   if (el.dataset.settingRender) { SETTINGS[el.dataset.settingRender] = el.value; saveSettings(); render(true); return; }
   if (el.dataset.libFilter) { SETTINGS.libFilter = Object.assign({}, SETTINGS.libFilter, { [el.dataset.libFilter]: el.value }); saveSettings(); render(true); return; }
   if (el.dataset.listAdd && el.value.trim()) { listAdd(el.dataset.listAdd, el.value); save(); return; }
@@ -1872,6 +1896,14 @@ document.addEventListener("click", async (e) => {
       save(); go("#/lib/" + it.id); return;
     }
     case "coll-pick": openSheet({ kind: "pickCollection", id: rec.id }); return;
+    case "coll-bydate": openSheet({ kind: "collByDate", id: rec.id, mode: "month", month: today().slice(0, 7) }); return;
+    case "bydate-mode": SHEET.mode = el.dataset.val; drawSheet(); return;
+    case "bydate-add": {
+      const it = DB.library[SHEET.id], add = byDatePieces(SHEET).map((p) => p.id);
+      if (!add.length) return;
+      it.pieceIds = [...(it.pieceIds || []), ...add]; touch(it); save(); closeSheet(); render(true);
+      toast(t("coll.added.count", { n: add.length })); return;
+    }
     case "coll-toggle": {   // from the collection's picker, or from a piece's own Design tab
       const it = SHEET && SHEET.kind === "pickCollection" ? DB.library[SHEET.id] : DB.library[el.dataset.coll];
       const pid = el.dataset.id || (rec && rec.id), cur = it.pieceIds || [];
@@ -2358,7 +2390,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "34";
+const APP_VERSION = "35";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
