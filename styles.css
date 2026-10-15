@@ -580,3 +580,4 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .photo-actions { display: flex; justify-content: center; gap: 22px; margin: 2px 0 4px; }
 .photo-field.wide { aspect-ratio: 3 / 2; max-height: 32vh; }
 .photo-add.wide { height: 110px; }
+.menu .grid2 .btn[disabled] { opacity: .35; }

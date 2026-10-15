@@ -599,7 +599,7 @@ function parseRoute() {
 const go = (h) => { location.hash = h; };
 window.addEventListener("hashchange", () => { ROUTE = parseRoute(); closeSheet(); render(); window.scrollTo(0, 0); });
 
-const TABS = ["pieces", "firings", "ideas", "costs"];
+const TABS = ["pieces", "ideas", "firings", "costs"];
 const TAB_OF = { lib: "ideas", trip: "firings", studio: "firings", pcost: "costs", piece: "pieces", firing: "firings", design: "ideas", insp: "ideas", settings: "more", more: "pieces", purchase: "costs" };
 
 // ---------- views
@@ -973,6 +973,7 @@ function designName(d) { return (d.description || "").split("\n")[0].slice(0, 40
  * clear glaze over a clay, are entries of their own. Filters: the type, a clay, a glaze. */
 const LIB_MATERIALS = ["glaze", "underglaze", "clay", "texture"];
 const LIB_FIXED = ["design", "insp"];
+const LIB_BUILTIN = ["design", "insp", "collection", "glaze", "underglaze", "clay", "texture"];   // the tabs that come with the app
 /** The tabs in the order chosen (designs and inspiration can be moved too), and the entry types. */
 const libFilters = () => listValues("libkinds");
 const libTypes = () => listValues("libkinds").filter((k) => !LIB_FIXED.includes(k));
@@ -1054,7 +1055,7 @@ function albumTile(it) {
 function libTile(it, showType) {
   if (it.kind === "collection") return albumTile(it);
   const pic = it.image, color = safeColor(it.color);
-  const bits = [showType ? libLabel(it.kind) : "", it.name && layersOf(it).length > 1 ? layersText(it) : "", it.kind !== "clay" && entryClays(it).length ? t("lib.onClay", { clay: mixLabel(entryClays(it)) }) : "", (it.glazes || []).join(", ")].filter(Boolean);
+  const bits = it.kind === "underglaze" ? [] : [showType ? libLabel(it.kind) : "", it.name && layersOf(it).length > 1 ? layersText(it) : "", it.kind !== "clay" && entryClays(it).length ? t("lib.onClay", { clay: mixLabel(entryClays(it)) }) : "", (it.glazes || []).join(", ")].filter(Boolean);
   return `<a class="tile lib" href="#/lib/${esc(it.id)}" data-hold="library:${esc(it.id)}">
     ${pic ? img(pic) : `<span class="swatch"${color ? ` style="background:${color}"` : ""}></span>`}
     <span class="tile-cap"><b>${esc(libName(it))}</b>${bits.length ? `<i>${esc(bits.join(" · "))}</i>` : ""}</span></a>`;
@@ -1064,7 +1065,7 @@ const inspTile = (x) => `<a class="tile" href="#/insp/${esc(x.id)}" data-hold="i
 
 VIEWS.ideas = () => {
   const k = libKind(), F = SETTINGS.libFilter || {}, clay = F.clay || "", glaze = F.glaze || "";
-  const row = `<div class="chips scroll libkinds">${libFilters().map((v) => `<button type="button" class="chip" data-act="lib-kind" data-val="${esc(v)}" aria-pressed="${v === k}">${esc(libLabel(v))}</button>`).join("")}<button type="button" class="chip add" data-act="lib-tabs" aria-label="${t("lib.editTabs")}">${ICON.settings}</button></div>`;
+  const row = `<div class="chips scroll libkinds">${libFilters().map((v) => `<button type="button" class="chip" data-act="lib-kind" data-val="${esc(v)}" data-hold="libtab:${esc(v)}" aria-pressed="${v === k}">${esc(libLabel(v))}</button>`).join("")}<button type="button" class="chip add" data-act="lib-tabs" aria-label="${t("lib.editTabs")}">${ICON.settings}</button></div>`;
   const sel = (key, opts, cur, any, lab) => `<select data-lib-filter="${key}" class="${cur ? "on" : ""}"><option value="">${any}</option>${opts.map((v) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(lab(v))}</option>`).join("")}</select>`;
   const filters = k === "insp" || k === "collection" ? "" : `<div class="lib-filters">${sel("clay", listValues("clay"), clay, t("lib.anyClay"), (v) => label("clay", v))}${sel("glaze", listValues("glazes"), glaze, t("lib.anyGlaze"), (v) => v)}</div>`;
   const entries = Object.values(DB.library).filter((it) => it.kind === k && libMatches(it, clay, glaze)).sort((a, b) => b.createdAt - a.createdAt);
@@ -1133,13 +1134,25 @@ VIEWS.lib = (r) => {
 
 /* The sheet the library opens for its tabs: their order, new ones, removing your own. */
 const LIB_SHEETS = {
+  /** Hold a tab: move it along the row, or delete it. */
+  tabMenu() {
+    const ks = listValues("libkinds"), v = SHEET.val, i = ks.indexOf(v);
+    return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${esc(libLabel(v))}</h3>
+      <div class="menu">
+        <div class="grid2"><button class="btn" data-act="tab-shift" data-val="${esc(v)}" data-d="-1"${i > 0 ? "" : " disabled"}>← ${t("lib.left")}</button>
+          <button class="btn" data-act="tab-shift" data-val="${esc(v)}" data-d="1"${i < ks.length - 1 ? "" : " disabled"}>${t("lib.right")} →</button></div>
+        <button class="btn wide" data-act="lib-tabs">${t("lib.editTabs")}</button>
+        <button class="btn danger wide" data-act="tab-remove" data-val="${esc(v)}">${ICON.trash} ${t("lib.deleteTab")}</button>
+      </div>`;
+  },
   libTabs() {
-    const ks = listValues("libkinds");
+    const ks = listValues("libkinds"), gone = LIB_BUILTIN.filter((v) => !ks.includes(v));
     return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${t("lib.editTabs")}</h3>
       <div class="tab-order">${ks.map((v, i) => `<div class="tab-row"><span>${esc(libLabel(v))}</span>
         <button class="icon-btn" data-act="tab-move" data-i="${i}" data-d="-1"${i ? "" : " disabled"} aria-label="${t("lib.up")}">↑</button>
         <button class="icon-btn" data-act="tab-move" data-i="${i}" data-d="1"${i < ks.length - 1 ? "" : " disabled"} aria-label="${t("lib.down")}">↓</button>
-        ${LIB_FIXED.includes(v) || ["collection", "glaze", "underglaze", "clay"].includes(v) ? `<span class="icon-btn"></span>` : `<button class="icon-btn" data-act="tab-remove" data-val="${esc(v)}" aria-label="${t("btn.delete")}">${ICON.trash}</button>`}</div>`).join("")}</div>
+        <button class="icon-btn" data-act="tab-remove" data-val="${esc(v)}" aria-label="${t("btn.delete")}">${ICON.trash}</button></div>`).join("")}</div>
+      ${gone.length ? `<span class="lbl">${t("lib.restore")}</span><div class="chips">${gone.map((v) => `<button type="button" class="chip" data-act="tab-restore" data-val="${esc(v)}">+ ${esc(libLabel(v))}</button>`).join("")}</div>` : ""}
       <span class="lbl">${t("lib.newKind")}</span>
       <div class="row"><input type="text" id="lib-kind-name" placeholder="${esc(t("lib.kindName"))}"><button class="btn primary" data-act="lib-make-kind">${t("lib.create")}</button></div>`;
   }
@@ -1629,7 +1642,7 @@ function toast(msg) {
 // ---------- sheets (photo viewer, pickers)
 let SHEET = null;   // { kind, ... }
 function openSheet(s) {
-  if (!SHEET_VIEWS.libTabs) Object.assign(SHEET_VIEWS, LIB_SHEETS, PLAN_SHEETS); SHEET = s; drawSheet(); document.body.classList.add("sheet-open"); }
+  if (!SHEET_VIEWS.tabMenu) Object.assign(SHEET_VIEWS, LIB_SHEETS, PLAN_SHEETS); SHEET = s; drawSheet(); document.body.classList.add("sheet-open"); }
 function closeSheet() { SHEET = null; $("#sheet").hidden = true; $("#sheet").innerHTML = ""; document.body.classList.remove("sheet-open"); }
 function drawSheet() {
   if (!SHEET) return;
@@ -1845,8 +1858,16 @@ document.addEventListener("click", async (e) => {
     }
     case "tab-remove": {
       if (!confirm(t("lib.removeTab", { name: libLabel(el.dataset.val) }))) return;
-      listRemove("libkinds", el.dataset.val); save(); drawSheet(); render(true); return;
+      listRemove("libkinds", el.dataset.val); save();
+      if (SHEET && SHEET.kind === "tabMenu") closeSheet(); else drawSheet();
+      render(true); return;
     }
+    case "tab-shift": {   // from a held tab: one place left or right
+      const ks = listValues("libkinds"), i = ks.indexOf(el.dataset.val), j = i + Number(el.dataset.d);
+      if (i < 0 || j < 0 || j >= ks.length) return;
+      [ks[i], ks[j]] = [ks[j], ks[i]]; setTabOrder(ks); save(); drawSheet(); render(true); return;
+    }
+    case "tab-restore": listAdd("libkinds", el.dataset.val); save(); drawSheet(); render(true); return;
     case "lib-add": el.dataset.val = libKind();   // Add makes what the open tab holds, so it carries on into lib-create
     // falls through
     case "lib-create": {   // a new entry starts from the filters in use, so "Celadon on Midfire white" is two taps
@@ -2092,7 +2113,8 @@ let pressTimer = null, pressedChip = null, heldJustNow = 0;
 function longPress(el) {
   pressedChip = null;
   if (el.dataset.hold) {
-    const [coll, id] = el.dataset.hold.split(":");
+    const cut = el.dataset.hold.indexOf(":"), coll = el.dataset.hold.slice(0, cut), id = el.dataset.hold.slice(cut + 1);
+    if (coll === "libtab") { openSheet({ kind: "tabMenu", val: id }); return; }
     if (coll === "photo") openSheet({ kind: "photoMenu", coll: "pieces", id: SHEET && SHEET.kind === "photo" ? SHEET.id : ROUTE.id, pid: id });
     else if (DB[coll] && DB[coll][id]) openSheet({ kind: "recordMenu", coll, id });
     return;
@@ -2343,7 +2365,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "32";
+const APP_VERSION = "33";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
