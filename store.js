@@ -19,7 +19,7 @@ const DEFAULT_LISTS = {
   channels: ["instagram", "xhs", "inperson", "market"],
   studios: [],
   stores: [],
-  libkinds: ["design", "insp", "glaze", "underglaze", "clay", "texture"]   // the library's tabs, in order; anyone can add their own
+  libkinds: ["design", "insp", "collection", "glaze", "underglaze", "clay", "texture"]   // the library's tabs, in order; anyone can add their own
 };
 const TOMBSTONE_DAYS = 90;
 
@@ -59,7 +59,7 @@ function migrate(db) {
     if (it.kind === "clay" && !Array.isArray(it.clays)) it.clays = (it.mix || (it.name ? [it.name] : [])).slice();   // name and mix stay as they were
   }
   const lk = db.lists && db.lists.libkinds;
-  if (lk) for (const [v, at] of [["design", 0.1], ["insp", 0.2], ["underglaze", 1.5]]) {
+  if (lk) for (const [v, at] of [["design", 0.1], ["insp", 0.2], ["collection", 0.3], ["underglaze", 1.5]]) {
     if (lk[v] == null && !(db.deleted || {})["list:libkinds:" + v]) lk[v] = at;
   }
   /* A communal-kiln firing becomes a drop-off and (if it was collected) a collection. The ids and
@@ -201,7 +201,8 @@ const Photos = (() => {
     return new Promise((res, rej) => {
       const t = db.transaction(store, mode), st = t.objectStore(store);
       const out = fn(st);
-      t.oncomplete = () => res(out && out.result !== undefined ? out.result : out);
+      // a lookup that finds nothing gives undefined, not the request itself (which once got treated as a photo)
+      t.oncomplete = () => res(out instanceof IDBRequest ? out.result : out);
       t.onerror = () => rej(t.error);
     });
   }

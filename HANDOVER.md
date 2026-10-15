@@ -85,6 +85,8 @@ Things worth knowing before changing the shape of a record:
   `shrinkB/G/T`. Glaze, underglaze and clay have their own forms; other types share one.
   `clayStats(mix)` works shrinkage out from pieces, leaving out implausible values (`plausible`)
   and outliers (`withoutOutliers`). Pieces join a section through `p.libs`.
+- **Collections** are library entries of kind `collection` holding `pieceIds`, a `date` and
+  notes; they show as albums (`albumTile`, `collectionView`).
 - **A design's plan** is `image`, `planBisque` or `planBisquePiece`, `planGlazes` (glaze names, or
   `lib:<id>` for a library entry), `planFinal` or `planFinalPiece`; `collage(d)` draws them.
 - **Costs**: `rateFor(kind, name)` averages what's been paid per gram across all

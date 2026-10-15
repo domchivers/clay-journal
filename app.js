@@ -764,6 +764,7 @@ const TAB_BODY = {
     const insps = (p.inspIds || []).map((id) => DB.insps[id]).filter(Boolean);
     return `
       ${field(t("f.design"), `<div class="row"><select data-f="designId"><option value="">${t("none")}</option>${designs.map((d) => `<option value="${esc(d.id)}"${d.id === p.designId ? " selected" : ""}>${esc(designName(d))}</option>`).join("")}</select>${p.designId && DB.designs[p.designId] ? `<a class="btn small ghost" href="#/design/${esc(p.designId)}">›</a>` : ""}</div>`)}
+      ${collections().length ? field(t("coll.inCollections"), `<div class="chips">${collections().map((c) => `<button type="button" class="chip" data-act="coll-toggle" data-coll="${esc(c.id)}" aria-pressed="${(c.pieceIds || []).includes(p.id)}">${esc(c.name || t("coll.untitled"))}</button>`).join("")}</div>`) : ""}
       ${pieceSections().length ? field(t("lib.inSections"), chips("libs", pieceSections(), p.libs, libLabel)) : ""}
       <span class="lbl">${t("f.inspirations")}</span>
       <div class="mini-grid">${insps.map((x) => `<div class="mini">${img(x.image)}<a href="#/insp/${esc(x.id)}" class="cover-link"></a><button class="icon-btn over" data-act="insp-unlink" data-id="${esc(x.id)}">${ICON.x}</button></div>`).join("")}
@@ -977,7 +978,7 @@ const libFilters = () => ["all", ...listValues("libkinds")];
 const libTypes = () => listValues("libkinds").filter((k) => !LIB_FIXED.includes(k));
 const libKind = () => libFilters().includes(SETTINGS.libTab) ? SETTINGS.libTab : "all";
 const libLabel = (k) => k === "all" ? t("lib.all") : label("lib", k);
-const pieceSections = () => libTypes().filter((k) => !LIB_MATERIALS.includes(k));
+const pieceSections = () => libTypes().filter((k) => !LIB_MATERIALS.includes(k) && k !== "collection");
 const piecesIn = (k) => sortedPieces().filter((p) => (p.libs || []).includes(k));
 const libItems = (kind) => Object.values(DB.library).filter((x) => x.kind === kind);
 const clayMix = (p) => [...new Set((p.clay || []).filter((r) => r.type).map((r) => r.type))].sort();
@@ -1036,7 +1037,22 @@ function clayTable(only) {
     ${rows.map((r) => `<button class="shr-line" data-act="clay-open" data-mix="${esc(r.m.join("|"))}"><span>${esc(mixLabel(r.m))}<i>${t("pieces.count", { n: Math.max(...["bisque", "glaze", "total"].map((k) => (r.st[k] || {}).n || 0)) })}</i></span><b>${cell(r.st.bisque)}</b><b>${cell(r.st.glaze)}</b><b>${cell(r.st.total)}</b></button>`).join("")}
     ${left ? `<p class="meta">${t("lib.leftOut", { n: left })}</p>` : ""}</div>`;
 }
+/* ---------- collections: albums of pieces, say the mugs going to a market. An entry of kind
+ * "collection" with the pieces it holds (pieceIds), a date and notes. */
+const collPieces = (it) => (it.pieceIds || []).map((id) => DB.pieces[id]).filter(Boolean);
+const collections = () => libItems("collection").sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt);
+function albumCovers(ps) {
+  const pics = ps.map(coverOf).filter(Boolean).slice(0, 4);
+  return pics.length ? `<div class="collage n${pics.length}">${pics.map((ph) => `<div>${img(ph)}</div>`).join("")}</div>` : `<span class="swatch"></span>`;
+}
+function albumTile(it) {
+  const ps = collPieces(it);
+  return `<a class="tile album" href="#/lib/${esc(it.id)}" data-hold="library:${esc(it.id)}">
+    <span class="album-pics">${albumCovers(ps)}</span>
+    <span class="tile-cap"><b>${esc(it.name || t("coll.untitled"))}</b><i>${esc([t("pieces.count", { n: ps.length }), it.date ? dateText(it.date) : ""].filter(Boolean).join(" · "))}</i></span></a>`;
+}
 function libTile(it, showType) {
+  if (it.kind === "collection") return albumTile(it);
   const pic = it.image, color = safeColor(it.color);
   const bits = [showType ? libLabel(it.kind) : "", it.name && layersOf(it).length > 1 ? layersText(it) : "", it.kind !== "clay" && entryClays(it).length ? t("lib.onClay", { clay: mixLabel(entryClays(it)) }) : "", (it.glazes || []).join(", ")].filter(Boolean);
   return `<a class="tile lib" href="#/lib/${esc(it.id)}" data-hold="library:${esc(it.id)}">
@@ -1050,7 +1066,7 @@ VIEWS.ideas = () => {
   const k = libKind(), F = SETTINGS.libFilter || {}, clay = F.clay || "", glaze = F.glaze || "";
   const row = `<div class="chips scroll libkinds">${libFilters().map((v) => `<button type="button" class="chip" data-act="lib-kind" data-val="${esc(v)}" aria-pressed="${v === k}">${esc(libLabel(v))}</button>`).join("")}<button type="button" class="chip add" data-act="lib-tabs" aria-label="${t("lib.editTabs")}">${ICON.settings}</button></div>`;
   const sel = (key, opts, cur, any, lab) => `<select data-lib-filter="${key}" class="${cur ? "on" : ""}"><option value="">${any}</option>${opts.map((v) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(lab(v))}</option>`).join("")}</select>`;
-  const filters = k === "insp" ? "" : `<div class="lib-filters">${sel("clay", listValues("clay"), clay, t("lib.anyClay"), (v) => label("clay", v))}${sel("glaze", listValues("glazes"), glaze, t("lib.anyGlaze"), (v) => v)}</div>`;
+  const filters = k === "insp" || k === "collection" ? "" : `<div class="lib-filters">${sel("clay", listValues("clay"), clay, t("lib.anyClay"), (v) => label("clay", v))}${sel("glaze", listValues("glazes"), glaze, t("lib.anyGlaze"), (v) => v)}</div>`;
   const entries = Object.values(DB.library).filter((it) => (k === "all" || it.kind === k) && libMatches(it, clay, glaze)).sort((a, b) => b.createdAt - a.createdAt);
   const designs = (k === "all" || k === "design") && !clay ? Object.values(DB.designs).filter((d) => !glaze || designGlazes(d).includes(glaze)).sort((a, b) => b.createdAt - a.createdAt) : [];
   const insps = (k === "all" || k === "insp") && !clay && !glaze ? Object.values(DB.insps).sort((a, b) => b.createdAt - a.createdAt) : [];
@@ -1066,6 +1082,7 @@ VIEWS.ideas = () => {
 VIEWS.lib = (r) => {
   const it = DB.library[r.id];
   if (!it) return null;
+  if (it.kind === "collection") return collectionView(it);
   const color = safeColor(it.color), k = it.kind;
   const clays = [...new Set([...listValues("clay"), ...entryClays(it)])];
   const glazes = [...new Set([...listValues("glazes"), ...(it.glazes || [])])].filter((g) => !(k === "glaze" && g === it.name));
@@ -1103,7 +1120,7 @@ VIEWS.lib = (r) => {
   return `<div data-rec data-coll="library" data-id="${esc(it.id)}" class="editor">
     ${imageBlock(it, "lib")}
     <div class="pad">
-      ${field(t("lib.type"), chips("kind", [...new Set([...libTypes(), k])], k, libLabel, { single: true }))}
+      ${field(t("lib.type"), chips("kind", [...new Set([...libTypes().filter((x) => x !== "collection"), k])], k, libLabel, { single: true }))}
       ${form}
       <datalist id="dl-glazes">${listValues("glazes").map((g) => `<option value="${esc(g)}">`).join("")}</datalist>
       ${field(t("lib.color"), `<div class="row color-row"><input type="color" data-f="color" value="${esc(color || "#c8b49a")}"><span class="meta">${t("lib.colorHint")}</span></div>`)}
@@ -1126,7 +1143,7 @@ const LIB_SHEETS = {
       <div class="tab-order">${ks.map((v, i) => `<div class="tab-row"><span>${esc(libLabel(v))}</span>
         <button class="icon-btn" data-act="tab-move" data-i="${i}" data-d="-1"${i ? "" : " disabled"} aria-label="${t("lib.up")}">↑</button>
         <button class="icon-btn" data-act="tab-move" data-i="${i}" data-d="1"${i < ks.length - 1 ? "" : " disabled"} aria-label="${t("lib.down")}">↓</button>
-        ${LIB_FIXED.includes(v) || ["glaze", "underglaze", "clay"].includes(v) ? `<span class="icon-btn"></span>` : `<button class="icon-btn" data-act="tab-remove" data-val="${esc(v)}" aria-label="${t("btn.delete")}">${ICON.trash}</button>`}</div>`).join("")}</div>
+        ${LIB_FIXED.includes(v) || ["collection", "glaze", "underglaze", "clay"].includes(v) ? `<span class="icon-btn"></span>` : `<button class="icon-btn" data-act="tab-remove" data-val="${esc(v)}" aria-label="${t("btn.delete")}">${ICON.trash}</button>`}</div>`).join("")}</div>
       <span class="lbl">${t("lib.newKind")}</span>
       <div class="row"><input type="text" id="lib-kind-name" placeholder="${esc(t("lib.kindName"))}"><button class="btn primary" data-act="lib-make-kind">${t("lib.create")}</button></div>`;
   }
@@ -1134,6 +1151,22 @@ const LIB_SHEETS = {
 /** Put the tabs in a new order: their times in the list are what orders them, and the newest times win a merge. */
 function setTabOrder(ks) { const base = now(); ks.forEach((v, i) => { DB.lists.libkinds[v] = base + i; }); }
 
+function collectionView(it) {
+  const ps = collPieces(it), asks = ps.map(salePrice).filter((x) => x > 0);
+  const sold = ps.filter((p) => (p.sale || {}).status === "sold");
+  return `<div data-rec data-coll="library" data-id="${esc(it.id)}" class="editor">
+    ${ps.length ? `<div class="album-hero">${albumCovers(ps)}</div>` : ""}
+    <div class="pad">
+      ${field(t("lib.name"), textIn("name", it.name, t("coll.namePh")))}
+      <div class="grid2">${field(t("f.date"), dateIn("date", it.date))}${field(t("coll.count"), `<div class="static">${t("pieces.count", { n: ps.length })}</div>`)}</div>
+      ${asks.length ? `<div class="calc"><span>${t("coll.askTotal")}${sold.length ? ` · ${t("coll.sold", { n: sold.length })}` : ""}</span><b>${esc(money(asks.reduce((a, b) => a + b, 0)))}</b></div>` : ""}
+      ${field(t("f.notes"), area("notes", it.notes, t("coll.notesPh")))}
+      <div class="row between"><span class="lbl">${t("coll.pieces")}</span><button class="btn small" data-act="coll-pick">${ICON.plus} ${t("btn.addPieces")}</button></div>
+    </div>
+    ${ps.length ? `<div class="pgrid titled">${ps.map(pieceTile).join("")}</div>` : `<div class="pad">${empty(t("coll.empty"))}</div>`}
+    <button class="btn danger wide" data-act="delete" data-coll="library">${t("btn.delete")}</button>
+  </div>`;
+}
 /* A design's plan, in four steps: the design itself, the piece after bisque, the glazes, the
  * result. The bisque and result can be a photo taken for the plan or a piece already logged
  * (its photo for that stage is used); glazes are library entries (combinations included) or
@@ -1186,6 +1219,12 @@ function planBlock(d) {
     </div><p class="meta">${t("plan.hint")}</p></div>`;
 }
 const PLAN_SHEETS = {
+  pickCollection() {
+    const it = DB.library[SHEET.id], on = new Set(it.pieceIds || []);
+    return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${esc(it.name || t("coll.untitled"))}</h3>
+      <div class="cards">${sortedPieces().map((p) => `<button class="card piece slim pick${on.has(p.id) ? " picked" : ""}" data-act="coll-toggle" data-id="${esc(p.id)}">${img(coverOf(p), "thumb")}<div class="card-body"><div class="card-title">${esc(pieceName(p))}</div><div class="meta">${esc([t("stage." + stageOf(p)), salePrice(p) ? money(salePrice(p)) : ""].filter(Boolean).join(" · "))}</div></div><i class="check">${on.has(p.id) ? "✓" : ""}</i></button>`).join("") || empty(t("empty.pieces"))}</div>
+      <button class="btn primary wide" data-act="sheet-close">${t("btn.done")}</button>`;
+  },
   /** A piece for the plan's bisque or result step, the pieces at that stage first. */
   pickPlanPiece() {
     const want = SHEET.step === "bisque" ? "bisque" : "final";
@@ -1803,8 +1842,17 @@ document.addEventListener("click", async (e) => {
       closeSheet();
       if (v === "design") { const d = newRecord("designs", { status: "concept", planGlazes: F.glaze ? [F.glaze] : [] }); save(); go("#/design/" + d.id); return; }
       if (v === "insp") { const x = newRecord("insps", { tags: [] }); save(); go("#/insp/" + x.id); return; }
-      const it = newRecord("library", { kind: v, name: "", clays: F.clay ? [F.clay] : [], glazes: [], layers: v === "glaze" ? [{ glaze: F.glaze || "", coats: 3 }] : [] });
+      const it = newRecord("library", v === "collection" ? { kind: v, name: "", date: today(), pieceIds: [] } : { kind: v, name: "", clays: F.clay ? [F.clay] : [], glazes: [], layers: v === "glaze" ? [{ glaze: F.glaze || "", coats: 3 }] : [] });
       save(); go("#/lib/" + it.id); return;
+    }
+    case "coll-pick": openSheet({ kind: "pickCollection", id: rec.id }); return;
+    case "coll-toggle": {   // from the collection's picker, or from a piece's own Design tab
+      const it = SHEET && SHEET.kind === "pickCollection" ? DB.library[SHEET.id] : DB.library[el.dataset.coll];
+      const pid = el.dataset.id || (rec && rec.id), cur = it.pieceIds || [];
+      it.pieceIds = cur.includes(pid) ? cur.filter((x) => x !== pid) : [...cur, pid];
+      touch(it); save();
+      if (SHEET && SHEET.kind === "pickCollection") drawSheet(); else render(true);
+      return;
     }
     case "clay-open": {   // a row of the shrinkage table: that clay's entry, made the first time
       const mix = el.dataset.mix.split("|");
@@ -2081,6 +2129,7 @@ function deleteRecord(coll, id, fromPage) {
   if (!confirm(name ? `${t(what)}\n\n${name}` : t(what))) { closeSwipe(); return; }
   if (coll === "firings") for (const p of piecesInFiring(id)) { for (const k of ["bisque", "glaze"]) if (p[k] && p[k].firingId === id) p[k].firingId = null; touch(p); }
   if (coll === "designs") for (const p of Object.values(DB.pieces)) if (p.designId === id) { p.designId = null; touch(p); }
+  if (coll === "pieces") for (const c of libItems("collection")) if ((c.pieceIds || []).includes(id)) { c.pieceIds = c.pieceIds.filter((x) => x !== id); touch(c); }
   if (coll === "pieces" || coll === "trips") for (const tr of Object.values(DB.trips)) {   // a deleted piece leaves its trips; a deleted drop-off un-collects its pieces
     const keep = (tr.items || []).filter((x) => coll === "pieces" ? x.pieceId !== id : x.dropId !== id);
     if (keep.length !== (tr.items || []).length) { tr.items = keep; touch(tr); }
@@ -2279,7 +2328,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "29";
+const APP_VERSION = "30";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
