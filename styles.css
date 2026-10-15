@@ -457,3 +457,39 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .menu .grid2 .btn { justify-content: center; }
 .menu .lbl { margin: 4px 0 0; }
 .ph-hint { margin: 0 0 6px; font-size: 12.5px; }
+
+/* the library */
+.libkinds { gap: 6px; }
+.libkinds .chip { min-height: 32px; border-radius: 999px; }
+.pad-x { padding: 0 20px; }
+.tiles:has(+ .lbl) { margin-bottom: 0; }
+.tile.lib { display: flex; flex-direction: column; }
+.tile.lib img, .tile.lib .swatch { flex: 1; min-height: 0; width: 100%; }
+.tile.lib .swatch { display: block; background: repeating-linear-gradient(45deg, var(--soft), var(--soft) 8px, var(--line) 8px, var(--line) 16px); }
+.tile-cap { display: block; padding: 7px 9px 8px; background: var(--card); text-align: left; }
+.tile-cap b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 14px; font-weight: 550; line-height: 1.3; overflow: hidden; }
+.tile-cap i { display: block; font-style: normal; font-size: 12px; color: var(--muted); }
+.lib-title { margin: 16px 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+.color-row { align-items: center; gap: 12px; }
+.color-row input[type="color"] { width: 54px; height: 40px; padding: 2px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); flex: none; }
+.shr-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0 4px; }
+.shr { background: var(--soft); border-radius: var(--radius); padding: 9px 10px; display: flex; flex-direction: column; }
+.shr span { font-size: 12.5px; color: var(--muted); }
+.shr b { font-size: 20px; font-weight: 600; }
+.shr i { font-style: normal; font-size: 11.5px; color: var(--faint); }
+
+/* a design's plan */
+.plan { margin: 16px 0; }
+.plan-steps { display: flex; flex-direction: column; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.plan-step > b { display: block; font-size: 13.5px; margin-bottom: 6px; }
+.plan-step + .plan-step { border-top: 1px solid var(--line); padding-top: 10px; }
+.plan-slot { position: relative; width: 112px; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--soft); }
+.plan-slot img { width: 100%; height: 100%; }
+.plan-slot .over { position: absolute; right: 4px; top: 4px; background: rgba(20, 16, 12, .5); color: #fff; border-radius: 50%; }
+.plan-add { position: absolute; inset: 0; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); cursor: pointer; }
+.chip .sw { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .15); flex: none; }
+
+/* clay that couldn't be costed */
+.costrow.na b { color: var(--faint); font-weight: 500; }
+.costrow.na i { display: block; margin-top: 2px; }
+.pick-clay { margin-top: 6px; width: auto; padding: 6px 10px; font-size: 14px; }

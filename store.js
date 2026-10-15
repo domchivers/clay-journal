@@ -10,15 +10,16 @@
 "use strict";
 
 const LS_DB = "clay.db.v1", LS_SETTINGS = "clay.settings.v1";
-const COLLECTIONS = ["pieces", "firings", "designs", "insps", "purchases", "shapes", "trips", "studios"];
-const LISTS = ["tags", "clay", "glazes", "channels", "studios", "stores"];
+const COLLECTIONS = ["pieces", "firings", "designs", "insps", "purchases", "shapes", "trips", "studios", "library"];
+const LISTS = ["tags", "clay", "glazes", "channels", "studios", "stores", "libkinds"];
 const DEFAULT_LISTS = {
   tags: ["cup", "plate", "bowl", "vase", "marbled", "coffee_cup"],
   clay: ["white", "red", "black", "stoneware", "porcelain"],
   glazes: [],
   channels: ["instagram", "xhs", "inperson", "market"],
   studios: [],
-  stores: []
+  stores: [],
+  libkinds: ["glaze", "clay", "texture"]   // the kinds of library; anyone can add their own
 };
 const TOMBSTONE_DAYS = 90;
 
@@ -114,11 +115,12 @@ function removeRecord(coll, id) {
   DB.deleted[`${coll}:${id}`] = now();
   if (rec) Photos.forget(photosOf(rec));
 }
-/** Every photo object a record carries (pieces have a list, designs and inspiration one image). */
+/** Every photo object a record carries (pieces have a list; designs, inspiration and library
+ * entries one image, and a design's plan a bisque and a final photo too). */
 function photosOf(rec) {
   if (!rec) return [];
   if (Array.isArray(rec.photos)) return rec.photos;
-  return rec.image ? [rec.image] : [];
+  return [rec.image, rec.planBisque, rec.planFinal].filter(Boolean);
 }
 
 // ---------- lists (tags, clay types, glazes, channels)
