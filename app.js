@@ -1060,7 +1060,7 @@ function libTile(it, showType) {
     ${pic ? img(pic) : `<span class="swatch"${color ? ` style="background:${color}"` : ""}></span>`}
     <span class="tile-cap"><b>${esc(libName(it))}</b>${bits.length ? `<i>${esc(bits.join(" · "))}</i>` : ""}</span></a>`;
 }
-const designTile = (d) => `<a class="tile" href="#/design/${esc(d.id)}" data-hold="designs:${esc(d.id)}">${collage(d) || `<div class="tile-text">${esc(d.description || "")}</div>`}<span class="pill ds-${d.status || "concept"}">${t("dstatus." + (d.status || "concept"))}</span></a>`;
+const designTile = (d) => `<a class="tile" href="#/design/${esc(d.id)}" data-hold="designs:${esc(d.id)}">${collage(d) || `<div class="tile-text">${esc(d.description || "")}</div>`}</a>`;
 const inspTile = (x) => `<a class="tile" href="#/insp/${esc(x.id)}" data-hold="insps:${esc(x.id)}">${x.image ? img(x.image) : `<div class="tile-text">${esc(x.notes || x.source || "")}</div>`}</a>`;
 
 VIEWS.ideas = () => {
@@ -1266,19 +1266,12 @@ function imageBlock(rec, target) {
 VIEWS.design = (r) => {
   const d = DB.designs[r.id];
   if (!d) return null;
-  const made = sortedPieces().filter((p) => p.designId === d.id);
   const insps = Object.values(DB.insps).sort((a, b) => b.createdAt - a.createdAt);
-  const free = sortedPieces().filter((p) => p.designId !== d.id);
   return `<div data-rec data-coll="designs" data-id="${esc(d.id)}" class="editor">
     ${collage(d, true)}
     <div class="pad">
     ${planBlock(d)}
-    ${field(t("f.description"), area("description", d.description, LANG === "zh" ? "这个想法是……" : "The idea…"))}
-    ${field(t("f.status"), chips("status", DSTATUS, d.status || "concept", (v) => t("dstatus." + v), { single: true, cls: "ds" }))}
-    ${field(t("f.sparkedBy"), `<div class="row"><select data-f="inspId"><option value="">${t("none")}</option>${insps.map((x) => `<option value="${esc(x.id)}"${x.id === d.inspId ? " selected" : ""}>${esc(inspName(x))}</option>`).join("")}</select>${d.inspId && DB.insps[d.inspId] ? `<a class="btn small ghost" href="#/insp/${esc(d.inspId)}">›</a>` : ""}</div>`)}
-    <span class="lbl">${t("f.resultPiece")}</span>
-    <div class="cards">${made.map((p) => `<a class="card piece slim" href="#/piece/${esc(p.id)}">${img(coverOf(p), "thumb")}<div class="card-body"><div class="card-title">${esc(pieceName(p))}</div><div class="meta">${t("stage." + stageOf(p))}</div></div></a>`).join("")}</div>
-    <select data-act-change="design-link"><option value="">${LANG === "zh" ? "+ 关联作品" : "+ Link a piece"}</option>${free.map((p) => `<option value="${esc(p.id)}">${esc(pieceName(p))}</option>`).join("")}</select>
+    <div class="row insp-pick"><select data-f="inspId"><option value="">${t("ideas.insp")}</option>${insps.map((x) => `<option value="${esc(x.id)}"${x.id === d.inspId ? " selected" : ""}>${esc(inspName(x))}</option>`).join("")}</select>${d.inspId && DB.insps[d.inspId] ? `<a class="btn small ghost" href="#/insp/${esc(d.inspId)}">›</a>` : ""}</div>
     <button class="btn danger wide" data-act="delete" data-coll="designs">${t("btn.delete")}</button>
   </div></div>`;
 };
@@ -2365,7 +2358,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "33";
+const APP_VERSION = "34";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });

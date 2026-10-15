@@ -581,3 +581,4 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .photo-field.wide { aspect-ratio: 3 / 2; max-height: 32vh; }
 .photo-add.wide { height: 110px; }
 .menu .grid2 .btn[disabled] { opacity: .35; }
+.insp-pick { margin: 6px 0 14px; }
