@@ -584,3 +584,5 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .insp-pick { margin: 6px 0 14px; }
 .small-notes textarea { min-height: 0; }
 .btn[disabled] { opacity: .45; }
+.shr-toggle { margin: 4px 0 2px; }
+.shr-toggle .btn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }

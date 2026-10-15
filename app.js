@@ -1063,6 +1063,7 @@ function libTile(it, showType) {
 const designTile = (d) => `<a class="tile" href="#/design/${esc(d.id)}" data-hold="designs:${esc(d.id)}">${collage(d) || `<div class="tile-text">${esc(d.description || "")}</div>`}</a>`;
 const inspTile = (x) => `<a class="tile" href="#/insp/${esc(x.id)}" data-hold="insps:${esc(x.id)}">${x.image ? img(x.image) : `<div class="tile-text">${esc(x.notes || x.source || "")}</div>`}</a>`;
 
+let CLAY_TABLE = false;   // the Clays tab's shrinkage table, shown when asked for
 VIEWS.ideas = () => {
   const k = libKind(), F = SETTINGS.libFilter || {}, clay = F.clay || "", glaze = F.glaze || "";
   const row = `<div class="chips scroll libkinds">${libFilters().map((v) => `<button type="button" class="chip" data-act="lib-kind" data-val="${esc(v)}" data-hold="libtab:${esc(v)}" aria-pressed="${v === k}">${esc(libLabel(v))}</button>`).join("")}<button type="button" class="chip add" data-act="lib-tabs" aria-label="${t("lib.editTabs")}">${ICON.settings}</button></div>`;
@@ -1074,8 +1075,9 @@ VIEWS.ideas = () => {
   const pieces = pieceSections().includes(k) ? piecesIn(k).filter((p) => (!clay || clayMix(p).includes(clay)) && (!glaze || ((p.glaze || {}).glazes || []).includes(glaze))) : [];
   const tiles = [...entries.map((it) => libTile(it, false)), ...designs.map(designTile), ...insps.map(inspTile)];
   return `<div class="toolbar">${row}${filters}</div>
-    ${k === "clay" ? `<div class="pad">${clayTable(clay)}</div>` : ""}
-    ${tiles.length ? `<div class="tiles${["glaze", "underglaze"].includes(k) ? " small" : ""}">${tiles.join("")}</div>` : ""}
+    ${k === "clay" ? `<div class="pad-x shr-toggle"><button class="btn small${CLAY_TABLE ? " on" : ""}" data-act="clay-table" aria-pressed="${CLAY_TABLE}">${t("lib.shrink")} ${CLAY_TABLE ? "▴" : "▾"}</button></div>
+      ${CLAY_TABLE ? clayTable(clay) || `<div class="pad">${empty(t("lib.noData"))}</div>` : ""}` : ""}
+    ${tiles.length ? `<div class="tiles${["glaze", "underglaze", "clay"].includes(k) ? " small" : ""}">${tiles.join("")}</div>` : ""}
     ${pieces.length ? `<span class="lbl pad-x">${t("lib.pieces")}</span><div class="pgrid titled">${pieces.map(pieceTile).join("")}</div>` : ""}
     ${tiles.length || pieces.length ? "" : empty(clay || glaze ? t("empty.match") : t("lib.empty"))}
     <div class="fab">${k === "insp" ? `<label class="fab-cam"><input type="file" accept="image/*" hidden data-upload="newinsp">${ICON.image}</label>` : ""}<button class="btn primary" data-act="lib-add">${ICON.plus} ${t("lib.add")}</button></div>`;
@@ -1281,7 +1283,7 @@ const PLAN_SHEETS = {
  * photo with Change and Remove under it. */
 function imageBlock(rec, target) {
   const input = `<input type="file" accept="image/*" hidden data-upload="${target}">`;
-  const wide = ["glaze", "underglaze"].includes(rec.kind) ? " wide" : "";
+  const wide = ["glaze", "underglaze", "clay"].includes(rec.kind) ? " wide" : "";
   if (!rec.image) return `<label class="photo-add${wide}">${input}${ICON.camera}<span>${t("btn.addPhoto")}</span></label>`;
   return `<div class="photo-field${wide}">${img(rec.image, "", false)}</div>
     <div class="photo-actions"><label class="linkish">${input}${t("plan.change")}</label><button class="linkish" data-act="image-del">${t("btn.remove")}</button></div>`;
@@ -1895,6 +1897,7 @@ document.addEventListener("click", async (e) => {
       const it = newRecord("library", v === "collection" ? { kind: v, name: "", date: today(), pieceIds: [] } : { kind: v, name: "", clays: F.clay ? [F.clay] : [], glazes: [], layers: v === "glaze" ? [{ glaze: F.glaze || "", coats: 3 }] : [] });
       save(); go("#/lib/" + it.id); return;
     }
+    case "clay-table": CLAY_TABLE = !CLAY_TABLE; render(true); return;
     case "coll-pick": openSheet({ kind: "pickCollection", id: rec.id }); return;
     case "coll-bydate": openSheet({ kind: "collByDate", id: rec.id, mode: "month", month: today().slice(0, 7) }); return;
     case "bydate-mode": SHEET.mode = el.dataset.val; drawSheet(); return;
@@ -2300,7 +2303,7 @@ async function onUpload(input) {
   try {
     if (["replace", "piece", "newpiece", "plan-bisque", "plan-final", "lib", "design"].includes(target)) {   // these photos are square
       const sheet = SHEET;
-      const wide = target === "lib" && ["glaze", "underglaze"].includes((DB.library[ROUTE.id] || {}).kind);
+      const wide = target === "lib" && ["glaze", "underglaze", "clay"].includes((DB.library[ROUTE.id] || {}).kind);
       files.splice(0, files.length, ...(await cropAll(target === "replace" ? files.slice(0, 1) : files, wide ? 1.5 : 1)));
       if (!files.length) return;
       SHEET = sheet;
@@ -2390,7 +2393,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "35";
+const APP_VERSION = "36";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
