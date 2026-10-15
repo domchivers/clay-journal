@@ -493,3 +493,51 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .costrow.na b { color: var(--faint); font-weight: 500; }
 .costrow.na i { display: block; margin-top: 2px; }
 .pick-clay { margin-top: 6px; width: auto; padding: 6px 10px; font-size: 14px; }
+
+/* library: filters, the shrinkage table, glaze layers, tab order */
+.lib-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lib-filters select { padding: 8px 10px; font-size: 14px; }
+.lib-filters select.on { border-color: var(--ink); font-weight: 550; }
+.libkinds .chip.add svg { width: 16px; height: 16px; }
+.shr-table { padding: 12px 14px; }
+.shr-head, .shr-line { display: grid; grid-template-columns: 1fr 58px 58px 52px; gap: 6px; align-items: baseline; }
+.shr-head { font-size: 12px; color: var(--muted); margin: 8px 0 2px; text-align: right; }
+.shr-line { width: 100%; border: 0; border-top: 1px solid var(--line); background: none; padding: 9px 0; font: inherit; color: inherit; text-align: right; cursor: pointer; }
+.shr-line span { text-align: left; font-size: 14.5px; min-width: 0; }
+.shr-line span i { display: block; font-style: normal; font-size: 12px; color: var(--muted); }
+.shr-line b { font-weight: 550; font-size: 14.5px; }
+.layers { display: flex; flex-direction: column; gap: 6px; }
+.layer { display: grid; grid-template-columns: 20px 1fr 84px 34px 34px; gap: 6px; align-items: center; }
+.layer .n { font-size: 13px; color: var(--muted); text-align: center; }
+.layer .coats { display: flex; align-items: center; gap: 4px; }
+.layer .coats input { padding: 8px 6px; text-align: center; }
+.layer .coats span { font-size: 12px; color: var(--muted); }
+.layers .btn.small { align-self: flex-start; margin-top: 2px; }
+.tab-order { display: flex; flex-direction: column; margin: 6px 0 10px; }
+.tab-row { display: grid; grid-template-columns: 1fr 36px 36px 36px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.tab-row button[disabled] { opacity: .25; }
+
+/* a design's collage and plan steps */
+.collage { display: grid; gap: 2px; aspect-ratio: 1; width: 100%; background: var(--bg); overflow: hidden; }
+.collage > div { position: relative; overflow: hidden; background: var(--soft); min-height: 0; }
+.collage img { width: 100%; height: 100%; }
+.collage.n2 { grid-template-columns: 1fr 1fr; }
+.collage.n3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.collage.n3 > :first-child { grid-row: span 2; }
+.collage.n4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.collage.big { max-height: 70vh; }
+.tile .collage { height: 100%; }
+.sw-stack { display: flex; flex-direction: column; height: 100%; }
+.sw-stack i { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0 8px; text-align: center; overflow: hidden; font-style: normal; font-size: 13px; font-weight: 550; line-height: 1.25; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
+.plan-step { min-width: 0; }
+.plan-choose { display: flex; gap: 8px; flex-wrap: wrap; }
+.plan-choose svg { width: 16px; height: 16px; }
+.plan-filled { display: flex; gap: 12px; align-items: center; }
+.plan-filled .plan-slot { width: 84px; flex: none; }
+.plan-what { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.plan-what a { font-weight: 550; }
+.plan-what .linkish { padding: 2px 0; }
+.plan-glazes .chip.on { background: var(--card); border-color: var(--line); color: var(--ink); }
+.plan-glazes .chip.on button { background: none; border: 0; color: var(--faint); font-size: 16px; padding: 0 0 0 5px; cursor: pointer; }
+.plan-glazes .chip.add svg { width: 14px; height: 14px; }
+.pick-tiles { padding: 0; margin: 4px 0 8px !important; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }

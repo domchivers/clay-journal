@@ -77,13 +77,16 @@ Things worth knowing before changing the shape of a record:
   everything dropped off and not collected. `DB.firings` is now home-kiln only: `migrate()` turns
   an old communal firing into `drop-<id>` / `collect-<id>` trips with ids and times taken from the
   firing, so every copy converts it identically.
-- **The Library tab** (route `#/ideas`, kept for old links) has one row of sections: Designs and
-  Inspiration (fixed), then `DB.lists.libkinds` (glaze, clay, texture and any the user adds).
-  Entries are `DB.library` records `{ kind, name, image, color, notes }`; glaze and clay entries
-  share names with `lists.glazes` / `lists.clay`, and clay entries carry `mix` (one clay or a
-  combination) plus optional own shrinkage `shrinkB/G/T`. `clayStats(mix)` works shrinkage out
-  from pieces. Pieces join sections through `p.libs`. A design's plan is `planBisque`,
-  `planGlazes`, `planFinal`.
+- **The Library tab** (route `#/ideas`, kept for old links) is one grid with filters: the tab
+  (`lists.libkinds`, ordered by their list times so `setTabOrder` can reorder them; design and
+  insp are tabs too), a clay and a glaze. Entries are `DB.library` records `{ kind, name, image,
+  color, notes, clays, glazes }`; a glaze entry has `layers` `[{ glaze, coats }]` in order (a
+  combination), a clay entry's `clays` is the clay or mix and it can carry own shrinkage
+  `shrinkB/G/T`. Glaze, underglaze and clay have their own forms; other types share one.
+  `clayStats(mix)` works shrinkage out from pieces, leaving out implausible values (`plausible`)
+  and outliers (`withoutOutliers`). Pieces join a section through `p.libs`.
+- **A design's plan** is `image`, `planBisque` or `planBisquePiece`, `planGlazes` (glaze names, or
+  `lib:<id>` for a library entry), `planFinal` or `planFinalPiece`; `collage(d)` draws them.
 - **Costs**: `rateFor(kind, name)` averages what's been paid per gram across all
   orders, including each line's share of that order's delivery. `pieceCost(p)` charges
   clay and glaze at those rates and adds an equal share of any linked firing's fee and

@@ -19,7 +19,7 @@ const DEFAULT_LISTS = {
   channels: ["instagram", "xhs", "inperson", "market"],
   studios: [],
   stores: [],
-  libkinds: ["glaze", "clay", "texture"]   // the kinds of library; anyone can add their own
+  libkinds: ["design", "insp", "glaze", "underglaze", "clay", "texture"]   // the library's tabs, in order; anyone can add their own
 };
 const TOMBSTONE_DAYS = 90;
 
@@ -51,6 +51,16 @@ function migrate(db) {
     if (p.wet && set(p.wet.trimmed) && !(p.trim && set(p.trim.weight))) {
       p.trim = Object.assign({}, p.trim, { weight: p.wet.trimmed });
     }
+  }
+  /* The library: clay entries name their clays in a list (one clay or a mix), and the tabs gained
+   * Underglaze, with Designs and Inspiration as tabs that can be moved like the rest. Times are
+   * fixed so every copy converts the same way. */
+  for (const it of Object.values(db.library || {})) {
+    if (it.kind === "clay" && !Array.isArray(it.clays)) { it.clays = it.mix || (it.name ? [it.name] : []); it.name = ""; delete it.mix; }
+  }
+  const lk = db.lists && db.lists.libkinds;
+  if (lk) for (const [v, at] of [["design", 0.1], ["insp", 0.2], ["underglaze", 1.5]]) {
+    if (lk[v] == null && !(db.deleted || {})["list:libkinds:" + v]) lk[v] = at;
   }
   /* A communal-kiln firing becomes a drop-off and (if it was collected) a collection. The ids and
    * times come from the firing itself, so every copy of the data converts it the same way and
