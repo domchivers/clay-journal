@@ -564,3 +564,19 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .album-hero { padding: 14px 26px 6px 20px; }
 .album-hero .collage { border-radius: 14px; box-shadow: 5px -5px 0 -1px var(--card), 5px -5px 0 0 var(--line), 10px -10px 0 -1px var(--card), 10px -10px 0 0 var(--line); max-height: 60vh; }
 .static { padding: 11px 0; font-size: 15px; }
+/* glazes and underglazes: smaller tiles, three to a row on a phone, four when there's room */
+.tiles.small { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+@media (min-width: 560px) { .tiles.small { grid-template-columns: repeat(4, 1fr); } }
+.tiles.small .tile-cap { padding: 5px 6px 6px; }
+.tiles.small .tile-cap b { font-size: 12.5px; }
+.tiles.small .tile-cap i { font-size: 11px; }
+.cost-sort { width: auto; padding: 6px 10px; font-size: 14px; }
+
+/* the photo at the top of a library entry or an inspiration */
+.photo-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; margin: 12px 0 4px; height: 150px; border: 1.5px dashed var(--line); border-radius: 14px; background: var(--card); color: var(--muted); font-size: 14.5px; font-weight: 500; cursor: pointer; }
+.photo-add svg { width: 28px; height: 28px; }
+.photo-field { margin: 12px 0 0; border-radius: 14px; overflow: hidden; background: var(--soft); aspect-ratio: 1; max-height: 60vh; }
+.photo-field img { width: 100%; height: 100%; }
+.photo-actions { display: flex; justify-content: center; gap: 22px; margin: 2px 0 4px; }
+.photo-field.wide { aspect-ratio: 3 / 2; max-height: 32vh; }
+.photo-add.wide { height: 110px; }

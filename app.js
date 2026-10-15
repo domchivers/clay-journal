@@ -974,9 +974,9 @@ function designName(d) { return (d.description || "").split("\n")[0].slice(0, 40
 const LIB_MATERIALS = ["glaze", "underglaze", "clay", "texture"];
 const LIB_FIXED = ["design", "insp"];
 /** The tabs in the order chosen (designs and inspiration can be moved too), and the entry types. */
-const libFilters = () => ["all", ...listValues("libkinds")];
+const libFilters = () => listValues("libkinds");
 const libTypes = () => listValues("libkinds").filter((k) => !LIB_FIXED.includes(k));
-const libKind = () => libFilters().includes(SETTINGS.libTab) ? SETTINGS.libTab : "all";
+const libKind = () => libFilters().includes(SETTINGS.libTab) ? SETTINGS.libTab : (libFilters()[0] || "design");
 const libLabel = (k) => k === "all" ? t("lib.all") : label("lib", k);
 const pieceSections = () => libTypes().filter((k) => !LIB_MATERIALS.includes(k) && k !== "collection");
 const piecesIn = (k) => sortedPieces().filter((p) => (p.libs || []).includes(k));
@@ -1067,14 +1067,14 @@ VIEWS.ideas = () => {
   const row = `<div class="chips scroll libkinds">${libFilters().map((v) => `<button type="button" class="chip" data-act="lib-kind" data-val="${esc(v)}" aria-pressed="${v === k}">${esc(libLabel(v))}</button>`).join("")}<button type="button" class="chip add" data-act="lib-tabs" aria-label="${t("lib.editTabs")}">${ICON.settings}</button></div>`;
   const sel = (key, opts, cur, any, lab) => `<select data-lib-filter="${key}" class="${cur ? "on" : ""}"><option value="">${any}</option>${opts.map((v) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(lab(v))}</option>`).join("")}</select>`;
   const filters = k === "insp" || k === "collection" ? "" : `<div class="lib-filters">${sel("clay", listValues("clay"), clay, t("lib.anyClay"), (v) => label("clay", v))}${sel("glaze", listValues("glazes"), glaze, t("lib.anyGlaze"), (v) => v)}</div>`;
-  const entries = Object.values(DB.library).filter((it) => (k === "all" || it.kind === k) && libMatches(it, clay, glaze)).sort((a, b) => b.createdAt - a.createdAt);
-  const designs = (k === "all" || k === "design") && !clay ? Object.values(DB.designs).filter((d) => !glaze || designGlazes(d).includes(glaze)).sort((a, b) => b.createdAt - a.createdAt) : [];
-  const insps = (k === "all" || k === "insp") && !clay && !glaze ? Object.values(DB.insps).sort((a, b) => b.createdAt - a.createdAt) : [];
+  const entries = Object.values(DB.library).filter((it) => it.kind === k && libMatches(it, clay, glaze)).sort((a, b) => b.createdAt - a.createdAt);
+  const designs = k === "design" && !clay ? Object.values(DB.designs).filter((d) => !glaze || designGlazes(d).includes(glaze)).sort((a, b) => b.createdAt - a.createdAt) : [];
+  const insps = k === "insp" && !clay && !glaze ? Object.values(DB.insps).sort((a, b) => b.createdAt - a.createdAt) : [];
   const pieces = pieceSections().includes(k) ? piecesIn(k).filter((p) => (!clay || clayMix(p).includes(clay)) && (!glaze || ((p.glaze || {}).glazes || []).includes(glaze))) : [];
-  const tiles = [...entries.map((it) => libTile(it, k === "all")), ...designs.map(designTile), ...insps.map(inspTile)];
+  const tiles = [...entries.map((it) => libTile(it, false)), ...designs.map(designTile), ...insps.map(inspTile)];
   return `<div class="toolbar">${row}${filters}</div>
     ${k === "clay" ? `<div class="pad">${clayTable(clay)}</div>` : ""}
-    ${tiles.length ? `<div class="tiles">${tiles.join("")}</div>` : ""}
+    ${tiles.length ? `<div class="tiles${["glaze", "underglaze"].includes(k) ? " small" : ""}">${tiles.join("")}</div>` : ""}
     ${pieces.length ? `<span class="lbl pad-x">${t("lib.pieces")}</span><div class="pgrid titled">${pieces.map(pieceTile).join("")}</div>` : ""}
     ${tiles.length || pieces.length ? "" : empty(clay || glaze ? t("empty.match") : t("lib.empty"))}
     <div class="fab">${k === "insp" ? `<label class="fab-cam"><input type="file" accept="image/*" hidden data-upload="newinsp">${ICON.image}</label>` : ""}<button class="btn primary" data-act="lib-add">${ICON.plus} ${t("lib.add")}</button></div>`;
@@ -1118,12 +1118,12 @@ VIEWS.lib = (r) => {
     : k === "clay" ? `${claysF("lib.clays")}${field(t("lib.nameOptional"), nameIn)}${glazesF("lib.glazeOver")}`
     : `${field(t("lib.name"), nameIn)}${claysF("lib.clayOptional")}${glazesF("lib.glazeOptional")}`;
   return `<div data-rec data-coll="library" data-id="${esc(it.id)}" class="editor">
-    ${imageBlock(it, "lib")}
     <div class="pad">
-      ${field(t("lib.type"), chips("kind", [...new Set([...libTypes().filter((x) => x !== "collection"), k])], k, libLabel, { single: true }))}
+      ${imageBlock(it, "lib")}
+      ${LIB_MATERIALS.includes(k) && k !== "texture" ? "" : field(t("lib.type"), chips("kind", libTypes().filter((x) => !LIB_MATERIALS.includes(x) || x === "texture").filter((x) => x !== "collection"), k, libLabel, { single: true }))}
       ${form}
       <datalist id="dl-glazes">${listValues("glazes").map((g) => `<option value="${esc(g)}">`).join("")}</datalist>
-      ${field(t("lib.color"), `<div class="row color-row"><input type="color" data-f="color" value="${esc(color || "#c8b49a")}"><span class="meta">${t("lib.colorHint")}</span></div>`)}
+      ${k === "underglaze" ? "" : field(t("lib.color"), `<div class="row color-row"><input type="color" data-f="color" value="${esc(color || "#c8b49a")}"><span class="meta">${t("lib.colorHint")}</span></div>`)}
       ${field(t("f.notes"), area("notes", it.notes))}
       ${extra}
       <button class="btn danger wide" data-act="delete" data-coll="library">${t("btn.delete")}</button>
@@ -1131,12 +1131,8 @@ VIEWS.lib = (r) => {
 };
 
 
-/* The sheets the library opens: what to add, and the tabs (order, new ones, removing your own). */
+/* The sheet the library opens for its tabs: their order, new ones, removing your own. */
 const LIB_SHEETS = {
-  addLib() {
-    return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${t("lib.addWhat")}</h3>
-      <div class="menu">${libFilters().filter((v) => v !== "all").map((v) => `<button class="btn wide" data-act="lib-create" data-val="${esc(v)}">${esc(libLabel(v))}</button>`).join("")}</div>`;
-  },
   libTabs() {
     const ks = listValues("libkinds");
     return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${t("lib.editTabs")}</h3>
@@ -1245,9 +1241,14 @@ const PLAN_SHEETS = {
   }
 };
 
+/** The photo at the top of a library entry or an inspiration: a clear box to add one, or the
+ * photo with Change and Remove under it. */
 function imageBlock(rec, target) {
-  return `<div class="hero">${rec.image ? img(rec.image, "hero-img contain", false) : ""}
-    <div class="hero-actions">${uploadBtn(target, false, rec.image ? (LANG === "zh" ? "换图片" : "Replace") : t("btn.addPhoto"))}${rec.image ? `<button class="btn small ghost" data-act="image-del">${ICON.x}</button>` : ""}</div></div>`;
+  const input = `<input type="file" accept="image/*" hidden data-upload="${target}">`;
+  const wide = ["glaze", "underglaze"].includes(rec.kind) ? " wide" : "";
+  if (!rec.image) return `<label class="photo-add${wide}">${input}${ICON.camera}<span>${t("btn.addPhoto")}</span></label>`;
+  return `<div class="photo-field${wide}">${img(rec.image, "", false)}</div>
+    <div class="photo-actions"><label class="linkish">${input}${t("plan.change")}</label><button class="linkish" data-act="image-del">${t("btn.remove")}</button></div>`;
 }
 VIEWS.design = (r) => {
   const d = DB.designs[r.id];
@@ -1275,8 +1276,8 @@ VIEWS.insp = (r) => {
   const ps = sortedPieces().filter((p) => (p.inspIds || []).includes(x.id));
   const ds = Object.values(DB.designs).filter((d) => d.inspId === x.id);
   return `<div data-rec data-coll="insps" data-id="${esc(x.id)}" class="editor">
-    ${imageBlock(x, "insp")}
     <div class="pad">
+    ${imageBlock(x, "insp")}
     ${field(t("f.source"), textIn("source", x.source, LANG === "zh" ? "小红书 @某某、展览、自己拍的……" : "Xiaohongshu @someone, a gallery, my own photo…"))}
     ${field(t("f.myNotes"), area("notes", x.notes, LANG === "zh" ? "喜欢这个绞胎纹理……" : "Love this marbling texture…"))}
     ${field(t("f.tags"), chips("tags", [...new Set([...listValues("tags"), ...(x.tags || [])])], x.tags, (v) => label("tag", v), { add: "tags" }))}
@@ -1290,9 +1291,18 @@ VIEWS.insp = (r) => {
 
 let COSTS_TAB = "materials";
 VIEWS.costs = () => {
-  const words = `<div class="toolbar"><div class="wordtabs">${["materials", "pieces"].map((k) => `<button data-act="costs-tab" data-val="${k}" aria-pressed="${COSTS_TAB === k}">${t("costs." + k)}</button>`).join("")}</div></div>`;
+  /* Sort by newest, or by what it cost: dearest first or cheapest first. Anything that couldn't
+   * be costed goes last either way. */
+  const sortBy = ["new", "high", "low"].includes(SETTINGS.costSort) ? SETTINGS.costSort : "new";
+  const sorted = (xs, val) => sortBy === "new" ? xs : xs.slice().sort((a, b) => {
+    const x = val(a), y = val(b);
+    if (!x !== !y) return !x - !y;
+    return sortBy === "high" ? y - x : x - y;
+  });
+  const words = `<div class="toolbar"><div class="row between"><div class="wordtabs">${["materials", "pieces"].map((k) => `<button data-act="costs-tab" data-val="${k}" aria-pressed="${COSTS_TAB === k}">${t("costs." + k)}</button>`).join("")}</div>
+    <select class="cost-sort" data-setting-render="costSort" aria-label="${t("costs.sort")}">${["new", "high", "low"].map((v) => `<option value="${v}"${v === sortBy ? " selected" : ""}>${t("costs.sort." + v)}</option>`).join("")}</select></div></div>`;
   if (COSTS_TAB === "materials") {
-    const buys = Object.values(DB.purchases).sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt);
+    const buys = sorted(Object.values(DB.purchases).sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt), orderTotal);
     const spent = buys.reduce((a, b) => a + orderTotal(b), 0);
     const nameOf = (l) => l.kind === "clay" ? label("clay", l.name) : l.name;
     return `${words}
@@ -1307,7 +1317,7 @@ VIEWS.costs = () => {
       }).join("") || empty(t("buy.none"))}</div>
       <div class="fab"><button class="btn primary" data-act="new-purchase">${ICON.plus} ${t("buy.new")}</button></div>`;
   }
-  const ps = sortedPieces();
+  const ps = sorted(sortedPieces(), (p) => pieceCost(p).total);
   const made = ps.reduce((a, p) => a + pieceCost(p).total, 0);
   const sold = ps.filter((p) => (p.sale || {}).status === "sold");
   const forSale = ps.filter((p) => (p.sale || {}).status === "for");
@@ -1764,6 +1774,7 @@ document.addEventListener("change", (e) => {
   if (el.dataset.setting) { SETTINGS[el.dataset.setting] = el.value.trim() || (el.dataset.setting === "currency" ? "£" : "cm"); saveSettings(); return; }
   if (el.dataset.gf) { SETTINGS.galleryFilters[el.dataset.gf] = el.value || null; saveSettings(); render(true); return; }
   if (el.dataset.ph) { const { rec, ph } = sheetPhoto(); if (ph) { ph[el.dataset.ph] = el.value; changed(rec, false); } return; }
+  if (el.dataset.settingRender) { SETTINGS[el.dataset.settingRender] = el.value; saveSettings(); render(true); return; }
   if (el.dataset.libFilter) { SETTINGS.libFilter = Object.assign({}, SETTINGS.libFilter, { [el.dataset.libFilter]: el.value }); saveSettings(); render(true); return; }
   if (el.dataset.listAdd && el.value.trim()) { listAdd(el.dataset.listAdd, el.value); save(); return; }
   if (el.dataset.actChange === "pick-clay") {   // the clay a piece was made of, picked where its cost was missing
@@ -1836,10 +1847,11 @@ document.addEventListener("click", async (e) => {
       if (!confirm(t("lib.removeTab", { name: libLabel(el.dataset.val) }))) return;
       listRemove("libkinds", el.dataset.val); save(); drawSheet(); render(true); return;
     }
-    case "lib-add": openSheet({ kind: "addLib" }); return;
+    case "lib-add": el.dataset.val = libKind();   // Add makes what the open tab holds, so it carries on into lib-create
+    // falls through
     case "lib-create": {   // a new entry starts from the filters in use, so "Celadon on Midfire white" is two taps
       const v = el.dataset.val, F = SETTINGS.libFilter || {};
-      closeSheet();
+      if (SHEET) closeSheet();
       if (v === "design") { const d = newRecord("designs", { status: "concept", planGlazes: F.glaze ? [F.glaze] : [] }); save(); go("#/design/" + d.id); return; }
       if (v === "insp") { const x = newRecord("insps", { tags: [] }); save(); go("#/insp/" + x.id); return; }
       const it = newRecord("library", v === "collection" ? { kind: v, name: "", date: today(), pieceIds: [] } : { kind: v, name: "", clays: F.clay ? [F.clay] : [], glazes: [], layers: v === "glaze" ? [{ glaze: F.glaze || "", coats: 3 }] : [] });
@@ -2170,7 +2182,7 @@ function onChip(el, rec) {
 
 /* Every piece photo is square. Before one is saved it opens in a square frame: drag to move it,
  * pinch or use the slider to zoom, then Use photo. Resolves with the cropped file, or null. */
-function cropSquare(file) {
+function cropSquare(file, ratio = 1) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file), im = new Image();
     im.onerror = () => { URL.revokeObjectURL(url); resolve(file); };   // can't read it here: keep it as it is
@@ -2183,18 +2195,20 @@ function cropSquare(file) {
         <div class="crop-btns"><button class="btn" data-c="cancel">${t("btn.cancel")}</button><button class="btn primary" data-c="use">${t("crop.use")}</button></div>`;
       document.body.appendChild(box);
       const frame = $(".crop-frame", box), pic = $("img", frame), slider = $(".crop-zoom", box);
+      frame.style.aspectRatio = String(ratio);
       pic.src = url;
       const W = im.naturalWidth, H = im.naturalHeight;
-      let S = frame.clientWidth, base = S / Math.min(W, H), z = 1, ox = 0, oy = 0;
+      const S = frame.clientWidth, SH = S / ratio;   // the frame, wide by high
+      let base = Math.max(S / W, SH / H), z = 1, ox = 0, oy = 0;
       const scale = () => base * z;
-      const clamp = () => { ox = Math.min(0, Math.max(S - W * scale(), ox)); oy = Math.min(0, Math.max(S - H * scale(), oy)); };
+      const clamp = () => { ox = Math.min(0, Math.max(S - W * scale(), ox)); oy = Math.min(0, Math.max(SH - H * scale(), oy)); };
       const draw = () => { clamp(); pic.style.width = W * scale() + "px"; pic.style.transform = `translate(${ox}px, ${oy}px)`; slider.value = z; };
       const zoomTo = (nz, px, py) => {   // keep the point under the fingers where it is
         nz = Math.min(4, Math.max(1, nz));
         const u = (px - ox) / scale(), v = (py - oy) / scale();
         z = nz; ox = px - u * scale(); oy = py - v * scale(); draw();
       };
-      ox = (S - W * scale()) / 2; oy = (S - H * scale()) / 2; draw();
+      ox = (S - W * scale()) / 2; oy = (SH - H * scale()) / 2; draw();
       const pts = new Map(); let pinch = null;
       const local = (e) => { const r = frame.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
       frame.addEventListener("pointerdown", (e) => { try { frame.setPointerCapture(e.pointerId); } catch (err) {} pts.set(e.pointerId, local(e)); pinch = null; });
@@ -2210,15 +2224,15 @@ function cropSquare(file) {
       const up = (e) => { pts.delete(e.pointerId); pinch = null; };
       frame.addEventListener("pointerup", up); frame.addEventListener("pointercancel", up);
       frame.addEventListener("wheel", (e) => { e.preventDefault(); const [x, y] = local(e); zoomTo(z * (e.deltaY < 0 ? 1.08 : 0.93), x, y); }, { passive: false });
-      slider.addEventListener("input", () => zoomTo(Number(slider.value), S / 2, S / 2));
+      slider.addEventListener("input", () => zoomTo(Number(slider.value), S / 2, SH / 2));
       const done = (out) => { box.remove(); URL.revokeObjectURL(url); resolve(out); };
       box.addEventListener("click", (e) => {
         const c = e.target.closest("[data-c]");
         if (!c) return;
         if (c.dataset.c === "cancel") return done(null);
-        const side = S / scale(), n = Math.round(Math.min(1800, side));
-        const cv = document.createElement("canvas"); cv.width = cv.height = n;
-        cv.getContext("2d").drawImage(im, -ox / scale(), -oy / scale(), side, side, 0, 0, n, n);
+        const sw = S / scale(), sh = SH / scale(), n = Math.round(Math.min(1800, sw));
+        const cv = document.createElement("canvas"); cv.width = n; cv.height = Math.round(n / ratio);
+        cv.getContext("2d").drawImage(im, -ox / scale(), -oy / scale(), sw, sh, 0, 0, cv.width, cv.height);
         cv.toBlob((b) => done(b ? new File([b], "square.jpg", { type: "image/jpeg" }) : file), "image/jpeg", 0.9);
       });
     };
@@ -2226,9 +2240,9 @@ function cropSquare(file) {
   });
 }
 /** Crop each chosen photo in turn; the ones cancelled are left out. */
-async function cropAll(files) {
+async function cropAll(files, ratio) {
   const out = [];
-  for (const f of files) { const c = await cropSquare(f); if (c) out.push(c); }
+  for (const f of files) { const c = await cropSquare(f, ratio); if (c) out.push(c); }
   return out;
 }
 async function onUpload(input) {
@@ -2239,7 +2253,8 @@ async function onUpload(input) {
   try {
     if (["replace", "piece", "newpiece", "plan-bisque", "plan-final", "lib", "design"].includes(target)) {   // these photos are square
       const sheet = SHEET;
-      files.splice(0, files.length, ...(await cropAll(target === "replace" ? files.slice(0, 1) : files)));
+      const wide = target === "lib" && ["glaze", "underglaze"].includes((DB.library[ROUTE.id] || {}).kind);
+      files.splice(0, files.length, ...(await cropAll(target === "replace" ? files.slice(0, 1) : files, wide ? 1.5 : 1)));
       if (!files.length) return;
       SHEET = sheet;
     }
@@ -2328,7 +2343,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "30";
+const APP_VERSION = "32";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
