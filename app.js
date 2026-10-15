@@ -1346,24 +1346,22 @@ VIEWS.costs = () => {
           <div class="meta">${esc([b.store ? what : "", dateText(b.date), has(b.delivery) && Number(b.delivery) ? `${t("buy.delivery")} ${money(b.delivery)}` : ""].filter(Boolean).join(" · "))}</div>
         </div><b>${orderTotal(b) ? esc(money(orderTotal(b))) : ""}</b></a>`, "purchases", b.id);
       }).join("") || empty(t("buy.none"))}</div>
-      <div class="fab"><button class="btn primary" data-act="new-purchase">${ICON.plus} ${t("buy.new")}</button></div>`;
+      <div class="fab"><button class="btn primary fab-plus" data-act="new-purchase" aria-label="${t("buy.new")}">${ICON.plus}</button></div>`;
   }
   const ps = sorted(sortedPieces(), (p) => pieceCost(p).total);
   const made = ps.reduce((a, p) => a + pieceCost(p).total, 0);
   const sold = ps.filter((p) => (p.sale || {}).status === "sold");
-  const forSale = ps.filter((p) => (p.sale || {}).status === "for");
   return `${words}
     <div class="pad">${field(t("cost.clayBy"), chips("clayBasis", ["wet", "trim"], clayBasis(), (v) => t(v === "trim" ? "cost.basisTrim" : "cost.basisWet"), { single: true }))}</div>
     <div class="rows">
       <div class="srow">${t("cost.made")}<span class="v">${esc(money(made))}</span></div>
       <div class="srow">${t("cost.sold")}<span class="v">${sold.length ? `${t("pieces.count", { n: sold.length })} · ${esc(money(sold.reduce((a, p) => a + salePrice(p), 0)))}` : "–"}</span></div>
-      <div class="srow">${t("cost.forSale")}<span class="v">${forSale.length ? `${t("pieces.count", { n: forSale.length })} · ${esc(money(forSale.reduce((a, p) => a + salePrice(p), 0)))}` : "–"}</span></div>
     </div>
     <div class="cards boxes">${ps.map((p) => {
       const k = pieceCost(p), s = p.sale || {};
       return `<a class="card piece" href="#/pcost/${esc(p.id)}">${img(coverOf(p), "thumb")}<div class="card-body">
         <div class="card-title">${esc(pieceName(p))}</div>
-        <div class="meta">${k.total ? esc(`${t("cost.total")} ${money(k.total)}`) : "–"}${k.clayNA ? ` · ${t("costs.clayNA")}` : ""}${s.status && s.status !== "not" ? esc(` · ${t("sale." + s.status)} ${money(salePrice(p))}`) : ""}</div>
+        <div class="meta">${k.total ? esc(`${t("cost.total")} ${money(k.total)}`) : "–"}${k.clayNA ? ` · ${t("costs.clayNA")}` : ""}${s.status === "sold" ? esc(` · ${t("sale.sold")} ${money(salePrice(p))}`) : ""}</div>
       </div></a>`;
     }).join("") || empty(t("empty.pieces"))}</div>`;
 };
@@ -2447,7 +2445,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "37";
+const APP_VERSION = "38";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });

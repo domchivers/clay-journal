@@ -591,3 +591,7 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .crop-tools .crop-zoom { flex: 1; width: auto; }
 .crop-tools .btn { background: transparent; color: #f4efe6; border-color: #4a433b; flex: none; }
 .plan-what .row { gap: 14px; }
+/* Costs: a small sort menu on the right, a round + for a new order */
+.toolbar .cost-sort { flex: none; width: auto; max-width: 124px; margin-left: auto; padding: 3px 22px 3px 9px; font-size: 12px; min-height: 0; border-radius: 999px; }
+.fab .btn.fab-plus { width: 50px; min-height: 50px; padding: 0; border-radius: 50%; justify-content: center; }
+.fab .btn.fab-plus svg { width: 22px; height: 22px; }
