@@ -595,3 +595,38 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .toolbar .cost-sort { flex: none; width: auto; max-width: 124px; margin-left: auto; padding: 3px 22px 3px 9px; font-size: 12px; min-height: 0; border-radius: 999px; }
 .fab .btn.fab-plus { width: 50px; min-height: 50px; padding: 0; border-radius: 50%; justify-content: center; }
 .fab .btn.fab-plus svg { width: 22px; height: 22px; }
+
+/* a design: the piece, with its underglazes and glazes as Pantone-style chips in the corner */
+.dcard { position: relative; width: 100%; height: 100%; aspect-ratio: 1; overflow: hidden; background: var(--soft); }
+.dcard > img { width: 100%; height: 100%; }
+.dcard.big { max-height: 70vh; }
+.pchips { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 5px; flex-wrap: wrap-reverse; justify-content: flex-end; max-width: 80%; }
+.dcard.big .pchips { right: 14px; bottom: 14px; gap: 8px; }
+.pchip { display: flex; flex-direction: column; width: 62px; background: #fff; padding: 4px 4px 0; border-radius: 3px; box-shadow: 0 2px 8px rgba(20, 16, 12, .28); }
+.pchip .pc-sw { display: block; aspect-ratio: 1; background: repeating-linear-gradient(45deg, #eee5d6, #eee5d6 5px, #ddd0b9 5px, #ddd0b9 10px); overflow: hidden; }
+.pchip .pc-sw img { width: 100%; height: 100%; }
+.pchip b { display: block; padding: 4px 1px 5px; font-size: 9px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: #1c1612; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pchip.sm { width: 24px; padding: 2px 2px 5px; border-radius: 2px; }
+.chip .pchip.sm { width: 16px; padding: 1px 1px 3px; box-shadow: 0 0 0 1px var(--line); margin-right: 2px; }
+.tile .dcard { aspect-ratio: auto; }
+.mini .dcard { aspect-ratio: auto; }
+/* glazes and underglazes without their names */
+.tiles.no-names .tile-cap { display: none; }
+.tiles.no-names .tile.lib { aspect-ratio: 1; }
+.lib-filters.with-btn { grid-template-columns: 1fr 1fr auto; align-items: center; }
+.lib-names svg { width: 20px; height: 20px; }
+.plan-glazes .chip.add svg { width: 14px; height: 14px; }
+
+/* the sketchpad */
+.sketch-pad { background: #fff; border-radius: 6px; overflow: hidden; touch-action: none; }
+.sketch-pad canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+.sketch-tools { width: min(100%, 720px); display: flex; flex-direction: column; gap: 10px; }
+.sketch-colors, .sketch-sizes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sw-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #4a433b; padding: 0; cursor: pointer; }
+.sw-btn[aria-pressed="true"] { border-color: #f4efe6; box-shadow: 0 0 0 2px #100e0c, 0 0 0 4px #f4efe6; }
+.size-btn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; border: 1px solid #4a433b; background: transparent; cursor: pointer; }
+.size-btn i { display: block; border-radius: 50%; background: #f4efe6; }
+.size-btn[aria-pressed="true"] { border-color: #f4efe6; }
+.sketch-sizes .btn { background: transparent; color: #f4efe6; border-color: #4a433b; min-height: 36px; }
+.sketch-sizes .btn:first-of-type { margin-left: auto; }
+.dcard.big .pchip { width: 52px; }

@@ -597,7 +597,25 @@ function parseRoute() {
   return { name: name || "pieces", id: id ? decodeURIComponent(id) : null };
 }
 const go = (h) => { location.hash = h; };
-window.addEventListener("hashchange", () => { ROUTE = parseRoute(); closeSheet(); render(); window.scrollTo(0, 0); });
+/* A new library entry, collection, design or inspiration that's left exactly as it was made
+ * (nothing typed, picked or photographed) is removed on the way out, so Add then Back leaves no
+ * empty card behind. */
+const FRESH = new Map();   // id -> { coll, snap } for entries made with Add this session
+const snapOf = (rec) => { const c = Object.assign({}, rec); delete c.updatedAt; return stable(c); };
+function fresh(coll, rec) { FRESH.set(rec.id, { coll, snap: snapOf(rec) }); return rec; }
+function dropIfUntouched(id) {
+  const f = FRESH.get(id);
+  if (!f) return;
+  const rec = DB[f.coll][id];
+  if (rec && snapOf(rec) === f.snap) { removeRecord(f.coll, id); save(); }
+  FRESH.delete(id);
+}
+window.addEventListener("hashchange", () => {
+  const was = ROUTE;
+  ROUTE = parseRoute();
+  if (was && was.id && was.id !== ROUTE.id) dropIfUntouched(was.id);
+  closeSheet(); render(); window.scrollTo(0, 0);
+});
 
 const TABS = ["pieces", "ideas", "firings", "costs"];
 const TAB_OF = { lib: "ideas", trip: "firings", studio: "firings", pcost: "costs", piece: "pieces", firing: "firings", design: "ideas", insp: "ideas", settings: "more", more: "pieces", purchase: "costs" };
@@ -1060,7 +1078,7 @@ function libTile(it, showType) {
     ${pic ? img(pic) : `<span class="swatch"${color ? ` style="background:${color}"` : ""}></span>`}
     <span class="tile-cap"><b>${esc(libName(it))}</b>${bits.length ? `<i>${esc(bits.join(" · "))}</i>` : ""}</span></a>`;
 }
-const designTile = (d) => `<a class="tile" href="#/design/${esc(d.id)}" data-hold="designs:${esc(d.id)}">${collage(d) || `<div class="tile-text">${esc(d.description || "")}</div>`}</a>`;
+const designTile = (d) => `<a class="tile" href="#/design/${esc(d.id)}" data-hold="designs:${esc(d.id)}">${designCard(d) || `<div class="tile-text">${esc(d.description || "")}</div>`}</a>`;
 const inspTile = (x) => `<a class="tile" href="#/insp/${esc(x.id)}" data-hold="insps:${esc(x.id)}">${x.image ? img(x.image) : `<div class="tile-text">${esc(x.notes || x.source || "")}</div>`}</a>`;
 
 let CLAY_TABLE = false;   // the Clays tab's shrinkage table, shown when asked for
@@ -1068,7 +1086,8 @@ VIEWS.ideas = () => {
   const k = libKind(), F = SETTINGS.libFilter || {}, clay = F.clay || "", glaze = F.glaze || "";
   const row = `<div class="chips scroll libkinds">${libFilters().map((v) => `<button type="button" class="chip" data-act="lib-kind" data-val="${esc(v)}" data-hold="libtab:${esc(v)}" aria-pressed="${v === k}">${esc(libLabel(v))}</button>`).join("")}<button type="button" class="chip add" data-act="lib-tabs" aria-label="${t("lib.editTabs")}">${ICON.settings}</button></div>`;
   const sel = (key, opts, cur, any, lab) => `<select data-lib-filter="${key}" class="${cur ? "on" : ""}"><option value="">${any}</option>${opts.map((v) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(lab(v))}</option>`).join("")}</select>`;
-  const filters = k === "insp" || k === "collection" ? "" : `<div class="lib-filters">${sel("clay", listValues("clay"), clay, t("lib.anyClay"), (v) => label("clay", v))}${sel("glaze", listValues("glazes"), glaze, t("lib.anyGlaze"), (v) => v)}</div>`;
+  const namesBtn = ["glaze", "underglaze"].includes(k) ? `<button class="icon-btn lib-names" data-act="lib-names" aria-pressed="${SETTINGS.libNames !== false}" aria-label="${t("f.layout")}" title="${t("f.layout")}">${SETTINGS.libNames !== false ? ICON.gridText : ICON.grid}</button>` : "";
+  const filters = k === "insp" || k === "collection" ? "" : `<div class="lib-filters${namesBtn ? " with-btn" : ""}">${sel("clay", listValues("clay"), clay, t("lib.anyClay"), (v) => label("clay", v))}${sel("glaze", listValues("glazes"), glaze, t("lib.anyGlaze"), (v) => v)}${namesBtn}</div>`;
   const entries = Object.values(DB.library).filter((it) => it.kind === k && libMatches(it, clay, glaze)).sort((a, b) => b.createdAt - a.createdAt);
   const designs = k === "design" && !clay ? Object.values(DB.designs).filter((d) => !glaze || designGlazes(d).includes(glaze)).sort((a, b) => b.createdAt - a.createdAt) : [];
   const insps = k === "insp" && !clay && !glaze ? Object.values(DB.insps).sort((a, b) => b.createdAt - a.createdAt) : [];
@@ -1077,7 +1096,7 @@ VIEWS.ideas = () => {
   return `<div class="toolbar">${row}${filters}</div>
     ${k === "clay" ? `<div class="pad-x shr-toggle"><button class="btn small${CLAY_TABLE ? " on" : ""}" data-act="clay-table" aria-pressed="${CLAY_TABLE}">${t("lib.shrink")} ${CLAY_TABLE ? "▴" : "▾"}</button></div>
       ${CLAY_TABLE ? clayTable(clay) || `<div class="pad">${empty(t("lib.noData"))}</div>` : ""}` : ""}
-    ${tiles.length ? `<div class="tiles${["glaze", "underglaze", "clay"].includes(k) ? " small" : ""}">${tiles.join("")}</div>` : ""}
+    ${tiles.length ? `<div class="tiles${["glaze", "underglaze", "clay"].includes(k) ? " small" : ""}${["glaze", "underglaze"].includes(k) && SETTINGS.libNames === false ? " no-names" : ""}">${tiles.join("")}</div>` : ""}
     ${pieces.length ? `<span class="lbl pad-x">${t("lib.pieces")}</span><div class="pgrid titled">${pieces.map(pieceTile).join("")}</div>` : ""}
     ${tiles.length || pieces.length ? "" : empty(clay || glaze ? t("empty.match") : t("lib.empty"))}
     <div class="fab">${k === "insp" ? `<label class="fab-cam"><input type="file" accept="image/*" hidden data-upload="newinsp">${ICON.image}</label>` : ""}<button class="btn primary" data-act="lib-add">${ICON.plus} ${t("lib.add")}</button></div>`;
@@ -1105,7 +1124,7 @@ VIEWS.lib = (r) => {
   const used = k === "clay" ? sortedPieces().filter((p) => entryClays(it).length && sameMix(clayMix(p), entryClays(it)))
     : k === "glaze" && glazesOf(it).length ? sortedPieces().filter((p) => { const g = (p.glaze || {}).glazes || []; return glazesOf(it).every((x) => g.includes(x)); }) : [];
   const ds = k === "glaze" && glazesOf(it).length ? Object.values(DB.designs).filter((d) => (d.planGlazes || []).includes("lib:" + it.id) || glazesOf(it).every((x) => designGlazes(d).includes(x))) : [];
-  if (used.length || ds.length) extra += `<span class="lbl">${t("lib.usedOn")}</span><div class="mini-grid">${used.map((p) => `<a class="mini" href="#/piece/${esc(p.id)}">${img(coverOf(p))}</a>`).join("")}${ds.map((d) => `<a class="mini" href="#/design/${esc(d.id)}">${collage(d) || ""}</a>`).join("")}</div>`;
+  if (used.length || ds.length) extra += `<span class="lbl">${t("lib.usedOn")}</span><div class="mini-grid">${used.map((p) => `<a class="mini" href="#/piece/${esc(p.id)}">${img(coverOf(p))}</a>`).join("")}${ds.map((d) => `<a class="mini" href="#/design/${esc(d.id)}">${designCard(d) || ""}</a>`).join("")}</div>`;
   const nameIn = `<input type="text" data-f="name" value="${esc(it.name || "")}" placeholder="${esc(k === "clay" ? (entryClays(it).length ? mixLabel(entryClays(it)) : t("lib.optional")) : k === "glaze" && layersOf(it).length > 1 ? layersText(it) : t("lib.name"))}"${k === "glaze" && layersOf(it).length < 2 ? ' list="dl-glazes" data-list-add="glazes"' : ""}>`;
   const ls = it.layers || [];
   const layers = `<div class="layers">${ls.map((l, i) => `<div class="layer"><span class="n">${i + 1}</span>
@@ -1190,23 +1209,27 @@ function planPhoto(d, step) {
   const ph = (p.photos || []).filter((x) => x.stage === (step === "bisque" ? "bisque" : "final")).slice(-1)[0] || coverOf(p);
   return { ph, p };
 }
-const planGlazeItems = (d) => (d.planGlazes || []).map((g) => String(g).startsWith("lib:") ? { key: g, it: DB.library[g.slice(4)] } : { key: g, name: g }).filter((x) => x.it || x.name);
+/** A plan's glazes or underglazes: library entries ("lib:<id>") or typed names. */
+const PLAN_KEY = { glaze: "planGlazes", underglaze: "planUnderglazes" };
+const planItems = (d, which) => (d[PLAN_KEY[which]] || []).map((g) => String(g).startsWith("lib:") ? { key: g, it: DB.library[g.slice(4)] } : { key: g, name: g }).filter((x) => x.it || x.name);
+const planGlazeItems = (d) => planItems(d, "glaze");
 const designGlazes = (d) => [...new Set(planGlazeItems(d).flatMap((x) => x.it ? glazesOf(x.it) : [x.name]))];
 const glazeItemName = (x) => x.it ? libName(x.it) : x.name;
 const glazeItemColor = (x) => safeColor(x.it ? x.it.color : (libFor("glaze", x.name) || {}).color);
-/** The collage: design, after bisque, glazes, result; whichever there are. */
-function collage(d, big) {
-  const cells = [];
-  if (d.image) cells.push(img(d.image, "", !big));
-  const b = planPhoto(d, "bisque"); if (b && b.ph) cells.push(img(b.ph, "", !big));
-  const gs = planGlazeItems(d);
-  if (gs.length) {
-    const pic = gs.map((x) => x.it && x.it.image).find(Boolean);
-    cells.push(pic ? img(pic, "", !big) : `<span class="sw-stack">${gs.slice(0, 4).map((x) => `<i style="background:${glazeItemColor(x) || "var(--soft)"}">${big ? esc(glazeItemName(x)) : ""}</i>`).join("")}</span>`);
-  }
-  const f = planPhoto(d, "final"); if (f && f.ph) cells.push(img(f.ph, "", !big));
-  if (!cells.length) return "";
-  return `<div class="collage n${cells.length}${big ? " big" : ""}">${cells.map((c) => `<div>${c}</div>`).join("")}</div>`;
+/* A colour chip like a Pantone card: the colour (or the entry's photo) over a white strip with
+ * its name. Glazes use their fired colour; underglazes, which have no colour, their photo. */
+function pantoneChip(x, which, big) {
+  const it = x.it || libFor(which, x.name), c = safeColor(it && it.color), pic = it && it.image;
+  const block = pic && (which === "underglaze" || !c) ? img(pic) : "";
+  return `<span class="pchip${big ? "" : " sm"}"><span class="pc-sw"${!block && c ? ` style="background:${c}"` : ""}>${block}</span>${big ? `<b>${esc(glazeItemName(x))}</b>` : ""}</span>`;
+}
+/** A design's picture: the piece (result, else after bisque, else the design), with its
+ * underglazes and glazes as chips in the bottom corner. */
+function designCard(d, big) {
+  const main = (planPhoto(d, "final") || {}).ph || (planPhoto(d, "bisque") || {}).ph || d.image;
+  const chips = [...planItems(d, "underglaze").map((x) => pantoneChip(x, "underglaze", big)), ...planItems(d, "glaze").map((x) => pantoneChip(x, "glaze", big))];
+  if (!main && !chips.length) return "";
+  return `<div class="dcard${big ? " big" : ""}">${main ? img(main, "", !big) : ""}${chips.length ? `<div class="pchips">${chips.slice(0, big ? 8 : 4).join("")}</div>` : ""}</div>`;
 }
 function planBlock(d) {
   const step = (n, title, body) => `<div class="plan-step"><b>${n} · ${title}</b>${body}</div>`;
@@ -1214,19 +1237,20 @@ function planBlock(d) {
     const x = key === "image" ? (d.image ? { ph: d.image } : null) : planPhoto(d, key === "planBisque" ? "bisque" : "final");
     if (x && x.ph) return `<div class="plan-filled"><div class="plan-slot">${img(x.ph)}</div>
       <div class="plan-what">${x.p ? `<a href="#/piece/${esc(x.p.id)}">${esc(pieceName(x.p))} ›</a>` : `<span class="meta">${t("plan.ownPhoto")}</span>`}
-        <span class="row">${x.p ? "" : `<button class="linkish" data-act="image-edit" data-val="${key}">${t("photo.editShort")}</button>`}<button class="linkish" data-act="plan-del" data-val="${key}">${t("plan.change")}</button></span></div></div>`;
-    return `<div class="plan-choose">${pick ? `<button class="btn small" data-act="plan-pick" data-val="${pick}">${ICON.pieces} ${t("plan.fromPieces")}</button>` : ""}
+        <span class="row">${key === "image" ? `<button class="linkish" data-act="design-draw">${t("draw.drawOn")}</button>` : ""}${x.p ? "" : `<button class="linkish" data-act="image-edit" data-val="${key}">${t("photo.editShort")}</button>`}<button class="linkish" data-act="plan-del" data-val="${key}">${t("plan.change")}</button></span></div></div>`;
+    return `<div class="plan-choose">${pick ? `<button class="btn small" data-act="plan-pick" data-val="${pick}">${ICON.pieces} ${t("plan.fromPieces")}</button>` : `<button class="btn small" data-act="design-draw">✎ ${t("draw.draw")}</button>`}
       <label class="btn small"><input type="file" accept="image/*" hidden data-upload="${target}">${ICON.camera} ${t("plan.upload")}</label></div>`;
   };
-  const gs = planGlazeItems(d);
-  const glazes = `<div class="chips plan-glazes">${gs.map((x) => { const c = glazeItemColor(x); return `<span class="chip on">${c ? `<i class="sw" style="background:${c}"></i>` : ""}${esc(glazeItemName(x))}<button data-act="plan-glaze-del" data-key="${esc(x.key)}" aria-label="${t("btn.delete")}">×</button></span>`; }).join("")}
-    <button type="button" class="chip add" data-act="plan-glaze-pick">${ICON.plus} ${t("plan.addGlaze")}</button></div>`;
+  const list = (which) => `<div class="chips plan-glazes">${planItems(d, which).map((x) => `<span class="chip on">${pantoneChip(x, which, false)}${esc(glazeItemName(x))}<button data-act="plan-glaze-del" data-which="${which}" data-key="${esc(x.key)}" aria-label="${t("btn.delete")}">×</button></span>`).join("")}
+    <button type="button" class="chip add" data-act="plan-glaze-pick" data-which="${which}">${ICON.plus} ${t(which === "glaze" ? "plan.addGlaze" : "plan.addUnder")}</button>
+    <label class="chip add"><input type="file" accept="image/*" hidden data-upload="plan-${which}">${ICON.camera} ${t("plan.upload")}</label></div>`;
   return `<div class="plan"><span class="lbl">${t("plan.title")}</span>
     <div class="plan-steps">
       ${step(1, t("plan.design"), photoStep("image", "design", null))}
       ${step(2, t("plan.bisque"), photoStep("planBisque", "plan-bisque", "bisque"))}
-      ${step(3, t("plan.glaze"), glazes)}
-      ${step(4, t("plan.final"), photoStep("planFinal", "plan-final", "final"))}
+      ${step(3, t("plan.under"), list("underglaze"))}
+      ${step(4, t("plan.glaze"), list("glaze"))}
+      ${step(5, t("plan.final"), photoStep("planFinal", "plan-final", "final"))}
     </div><p class="meta">${t("plan.hint")}</p></div>`;
 }
 /** When a piece was made: the day it was thrown, else the day it was logged. */
@@ -1268,10 +1292,10 @@ const PLAN_SHEETS = {
   },
   /** Glazes for the plan: library entries (combinations too), glazes by name, or typed. */
   pickPlanGlaze() {
-    const d = DB.designs[SHEET.id], on = new Set(d.planGlazes || []);
-    const entries = libItems("glaze").filter((it) => !on.has("lib:" + it.id));
-    const names = listValues("glazes").filter((g) => !on.has(g));
-    return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${t("plan.addGlaze")}</h3>
+    const which = SHEET.which || "glaze", d = DB.designs[SHEET.id], on = new Set(d[PLAN_KEY[which]] || []);
+    const entries = libItems(which).filter((it) => !on.has("lib:" + it.id));
+    const names = (which === "glaze" ? listValues("glazes") : []).filter((g) => !on.has(g));
+    return `<button class="icon-btn close" data-act="sheet-close">${ICON.x}</button><h3>${t(which === "glaze" ? "plan.addGlaze" : "plan.addUnder")}</h3>
       ${entries.length ? `<span class="lbl">${t("plan.fromLibrary")}</span><div class="tiles pick-tiles">${entries.map((it) => `<button class="tile lib" data-act="plan-glaze-add" data-key="lib:${esc(it.id)}">${it.image ? img(it.image) : `<span class="swatch"${safeColor(it.color) ? ` style="background:${safeColor(it.color)}"` : ""}></span>`}<span class="tile-cap"><b>${esc(libName(it))}</b>${entryClays(it).length ? `<i>${esc(t("lib.onClay", { clay: mixLabel(entryClays(it)) }))}</i>` : ""}</span></button>`).join("")}</div>` : ""}
       ${names.length ? `<span class="lbl">${t("plan.byName")}</span><div class="chips">${names.map((g) => `<button type="button" class="chip" data-act="plan-glaze-add" data-key="${esc(g)}">${esc(g)}</button>`).join("")}</div>` : ""}
       <span class="lbl">${t("plan.typeGlaze")}</span>
@@ -1293,7 +1317,7 @@ VIEWS.design = (r) => {
   if (!d) return null;
   const insps = Object.values(DB.insps).sort((a, b) => b.createdAt - a.createdAt);
   return `<div data-rec data-coll="designs" data-id="${esc(d.id)}" class="editor">
-    ${collage(d, true)}
+    ${designCard(d, true)}
     <div class="pad">
     ${planBlock(d)}
     <div class="row insp-pick"><select data-f="inspId"><option value="">${t("ideas.insp")}</option>${insps.map((x) => `<option value="${esc(x.id)}"${x.id === d.inspId ? " selected" : ""}>${esc(inspName(x))}</option>`).join("")}</select>${d.inspId && DB.insps[d.inspId] ? `<a class="btn small ghost" href="#/insp/${esc(d.inspId)}">›</a>` : ""}</div>
@@ -1892,11 +1916,12 @@ document.addEventListener("click", async (e) => {
     case "lib-create": {   // a new entry starts from the filters in use, so "Celadon on Midfire white" is two taps
       const v = el.dataset.val, F = SETTINGS.libFilter || {};
       if (SHEET) closeSheet();
-      if (v === "design") { const d = newRecord("designs", { status: "concept", planGlazes: F.glaze ? [F.glaze] : [] }); save(); go("#/design/" + d.id); return; }
-      if (v === "insp") { const x = newRecord("insps", { tags: [] }); save(); go("#/insp/" + x.id); return; }
-      const it = newRecord("library", v === "collection" ? { kind: v, name: "", date: today(), pieceIds: [] } : { kind: v, name: "", clays: F.clay ? [F.clay] : [], glazes: [], layers: v === "glaze" ? [{ glaze: F.glaze || "", coats: 3 }] : [] });
+      if (v === "design") { const d = fresh("designs", newRecord("designs", { status: "concept", planGlazes: F.glaze ? [F.glaze] : [] })); save(); go("#/design/" + d.id); return; }
+      if (v === "insp") { const x = fresh("insps", newRecord("insps", { tags: [] })); save(); go("#/insp/" + x.id); return; }
+      const it = fresh("library", newRecord("library", v === "collection" ? { kind: v, name: "", date: today(), pieceIds: [] } : { kind: v, name: "", clays: F.clay ? [F.clay] : [], glazes: [], layers: v === "glaze" ? [{ glaze: F.glaze || "", coats: 3 }] : [] }));
       save(); go("#/lib/" + it.id); return;
     }
+    case "lib-names": SETTINGS.libNames = SETTINGS.libNames === false; saveSettings(); render(true); return;
     case "clay-table": CLAY_TABLE = !CLAY_TABLE; render(true); return;
     case "coll-pick": openSheet({ kind: "pickCollection", id: rec.id }); return;
     case "coll-bydate": openSheet({ kind: "collByDate", id: rec.id, mode: "month", month: today().slice(0, 7) }); return;
@@ -1941,15 +1966,15 @@ document.addEventListener("click", async (e) => {
       d[key + "Piece"] = el.dataset.id;
       touch(d); save(); closeSheet(); render(true); return;
     }
-    case "plan-glaze-pick": openSheet({ kind: "pickPlanGlaze", id: rec.id }); return;
+    case "plan-glaze-pick": openSheet({ kind: "pickPlanGlaze", id: rec.id, which: el.dataset.which || "glaze" }); return;
     case "plan-glaze-add": case "plan-glaze-text": {
-      const d = DB.designs[SHEET.id];
+      const d = DB.designs[SHEET.id], f = PLAN_KEY[SHEET.which || "glaze"];
       const key = act === "plan-glaze-text" ? (($("#plan-glaze-text") || {}).value || "").trim() : el.dataset.key;
       if (!key) return;
-      d.planGlazes = [...new Set([...(d.planGlazes || []), key])];
+      d[f] = [...new Set([...(d[f] || []), key])];
       touch(d); save(); closeSheet(); render(true); return;
     }
-    case "plan-glaze-del": e.preventDefault(); rec.planGlazes = (rec.planGlazes || []).filter((x) => x !== el.dataset.key); changed(rec, true); return;
+    case "plan-glaze-del": { e.preventDefault(); const f = PLAN_KEY[el.dataset.which || "glaze"]; rec[f] = (rec[f] || []).filter((x) => x !== el.dataset.key); changed(rec, true); return; }
     case "new-drop": {
       const last = tripsSorted()[0], studio = (last && last.studio) || listValues("studios")[0] || "";
       const cone = {}; for (const ty of TRIP_TYPES) cone[ty] = conesUsed(ty)[0] || "";   // the usual cones, ready to change
@@ -1992,8 +2017,8 @@ document.addEventListener("click", async (e) => {
       save(); go("#/studio/" + st.id); return;
     }
     case "new-firing": { const f = newRecord("firings", { date: today(), type: "bisque" }); save(); go("#/firing/" + f.id); return; }
-    case "new-design": { const d = newRecord("designs", { status: "concept" }); save(); go("#/design/" + d.id); return; }
-    case "new-insp": { const x = newRecord("insps", { tags: [] }); save(); go("#/insp/" + x.id); return; }
+    case "new-design": { const d = fresh("designs", newRecord("designs", { status: "concept" })); save(); go("#/design/" + d.id); return; }
+    case "new-insp": { const x = fresh("insps", newRecord("insps", { tags: [] })); save(); go("#/insp/" + x.id); return; }
     case "design-from-insp": { const d = newRecord("designs", { status: "concept", inspId: ROUTE.id }); save(); go("#/design/" + d.id); return; }
     case "swipe-delete": return deleteRecord(el.dataset.coll, el.dataset.id);
     case "piece-filter": PIECE_FILTER = el.dataset.val; render(true); return;
@@ -2052,6 +2077,15 @@ document.addEventListener("click", async (e) => {
       if (r.cover === old.id) r.cover = nph.id;
       Photos.forget([old]); touch(r); save(); render(true); toast(t("photo.edited"));
       return;
+    }
+    case "design-draw": {   // sketch the design, on white or over the design image there already
+      const d = rec, old = d.image, base = old ? await photoFile(old) : null;
+      const out = await drawSketch(base);
+      if (!out) return;
+      const ph = await Photos.fromFile(out, { stage: "design" });
+      const r = DB.designs[d.id] || d;
+      if (old) Photos.forget([old]);
+      r.image = ph; touch(r); save(); render(true); return;
     }
     case "image-edit": {
       const key = el.dataset.val, coll = recOfColl(el), r0 = rec, old = r0 && r0[key];
@@ -2322,6 +2356,65 @@ function cropSquare(file, ratio = 1) {
     im.src = url;
   });
 }
+/* A sketchpad for a design: draw with a finger (or a pencil) on white, or over the design image
+ * there already. A few colours and pen sizes, Undo and Clear. Resolves with the drawing as a
+ * file, or null if cancelled. */
+function drawSketch(baseFile) {
+  return new Promise((resolve) => {
+    const box = document.createElement("div");
+    box.className = "crop sketch";
+    const COLORS = ["#1c1612", "#8a5228", "#3f7175", "#2f5aa8", "#b33a2b", "#40653c", "#ffffff"], SIZES = [2, 5, 10];
+    box.innerHTML = `<div class="sketch-pad"><canvas></canvas></div>
+      <div class="sketch-tools">
+        <div class="sketch-colors">${COLORS.map((c, i) => `<button class="sw-btn" data-color="${c}" style="background:${c}" aria-pressed="${i === 0}" aria-label="${c}"></button>`).join("")}</div>
+        <div class="sketch-sizes">${SIZES.map((s, i) => `<button class="size-btn" data-size="${s}" aria-pressed="${i === 1}"><i style="width:${s + 4}px;height:${s + 4}px"></i></button>`).join("")}
+          <button class="btn" data-c="undo">${t("draw.undo")}</button><button class="btn" data-c="clear">${t("draw.clear")}</button></div>
+      </div>
+      <div class="crop-btns"><button class="btn" data-c="cancel">${t("btn.cancel")}</button><button class="btn primary" data-c="done">${t("btn.done")}</button></div>`;
+    document.body.appendChild(box);
+    const pad = $(".sketch-pad", box), cv = $("canvas", pad), g = cv.getContext("2d");
+    const S = Math.min(box.clientWidth - 32, window.innerHeight * 0.58, 720);
+    const N = Math.round(Math.min(1600, S * (window.devicePixelRatio || 1)));   // drawn at the screen's sharpness
+    pad.style.width = pad.style.height = S + "px"; cv.width = cv.height = N;
+    const k = N / S;
+    let color = COLORS[0], size = SIZES[1], base = null;
+    const strokes = []; let cur = null;
+    const paint = () => {
+      g.fillStyle = "#fff"; g.fillRect(0, 0, N, N);
+      if (base) { const s = Math.max(N / base.width, N / base.height), w = base.width * s, h = base.height * s; g.drawImage(base, (N - w) / 2, (N - h) / 2, w, h); }
+      for (const st of strokes) line(st);
+    };
+    function line(st) {   // a smooth line through the points, through their midpoints
+      const p = st.pts;
+      g.strokeStyle = st.color; g.lineWidth = st.size * k; g.lineCap = g.lineJoin = "round";
+      g.beginPath(); g.moveTo(p[0][0], p[0][1]);
+      if (p.length === 1) g.lineTo(p[0][0] + 0.01, p[0][1]);
+      for (let i = 1; i < p.length - 1; i++) { const mx = (p[i][0] + p[i + 1][0]) / 2, my = (p[i][1] + p[i + 1][1]) / 2; g.quadraticCurveTo(p[i][0], p[i][1], mx, my); }
+      if (p.length > 1) g.lineTo(p[p.length - 1][0], p[p.length - 1][1]);
+      g.stroke();
+    }
+    const at = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * k, (e.clientY - r.top) * k]; };
+    cv.addEventListener("pointerdown", (e) => { try { cv.setPointerCapture(e.pointerId); } catch (err) {} cur = { color, size, pts: [at(e)] }; strokes.push(cur); paint(); });
+    cv.addEventListener("pointermove", (e) => { if (!cur) return; const co = e.getCoalescedEvents ? e.getCoalescedEvents() : [], evs = co.length ? co : [e]; for (const ev of evs) cur.pts.push(at(ev)); paint(); });
+    const end = () => { cur = null; };
+    cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
+    const done = (out) => { box.remove(); resolve(out); };
+    box.addEventListener("click", (e) => {
+      const c = e.target.closest("[data-color],[data-size],[data-c]");
+      if (!c) return;
+      if (c.dataset.color) { color = c.dataset.color; $$("[data-color]", box).forEach((b) => b.setAttribute("aria-pressed", b === c)); return; }
+      if (c.dataset.size) { size = Number(c.dataset.size); $$("[data-size]", box).forEach((b) => b.setAttribute("aria-pressed", b === c)); return; }
+      const a = c.dataset.c;
+      if (a === "undo") { strokes.pop(); paint(); return; }
+      if (a === "clear") { strokes.length = 0; paint(); return; }
+      if (a === "cancel") return done(null);
+      if (a === "done") cv.toBlob((b) => done(b ? new File([b], "sketch.jpg", { type: "image/jpeg" }) : null), "image/jpeg", 0.92);
+    });
+    if (baseFile) { const u = URL.createObjectURL(baseFile), im = new Image(); im.onload = () => { base = im; paint(); URL.revokeObjectURL(u); }; im.onerror = () => { paint(); URL.revokeObjectURL(u); }; im.src = u; }
+    paint();
+  });
+}
+
 /** A saved photo as a file again: the copy on this phone, else the one in the cloud. */
 async function photoFile(ph) {
   const b = await Photos.get(ph.id);
@@ -2353,12 +2446,22 @@ async function onUpload(input) {
   if (!files.length) return;
   const target = input.dataset.upload;
   try {
-    if (["replace", "piece", "newpiece", "plan-bisque", "plan-final", "lib", "design"].includes(target)) {   // these photos are square
+    if (["replace", "piece", "newpiece", "plan-bisque", "plan-final", "lib", "design", "plan-glaze", "plan-underglaze"].includes(target)) {   // these photos are square
       const sheet = SHEET;
-      const wide = target === "lib" && ["glaze", "underglaze", "clay"].includes((DB.library[ROUTE.id] || {}).kind);
+      const wide = (target === "lib" && ["glaze", "underglaze", "clay"].includes((DB.library[ROUTE.id] || {}).kind)) || target === "plan-glaze" || target === "plan-underglaze";
       files.splice(0, files.length, ...(await cropAll(target === "replace" ? files.slice(0, 1) : files, wide ? 1.5 : 1)));
       if (!files.length) return;
       SHEET = sheet;
+    }
+    if (target === "plan-glaze" || target === "plan-underglaze") {   // a glaze photographed for the plan: kept in the library too
+      const which = target.slice(5), d = DB.designs[ROUTE.id];
+      const name = (prompt(t("plan.nameIt")) || "").trim();
+      const ph = await Photos.fromFile(files[0], { stage: "library" });
+      if (which === "glaze" && name) listAdd("glazes", name);
+      const it = newRecord("library", { kind: which, name, image: ph, clays: [], glazes: [], layers: which === "glaze" && name ? [{ glaze: name, coats: 3 }] : [] });
+      const f = PLAN_KEY[which];
+      d[f] = [...new Set([...(d[f] || []), "lib:" + it.id])];
+      touch(d); save(); render(true); return;
     }
     if (target === "replace") {   // same place in the list, same stage and tags, cover stays the cover
       const { rec: r0, ph: old } = sheetPhoto();
@@ -2445,7 +2548,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "38";
+const APP_VERSION = "41";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
