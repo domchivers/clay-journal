@@ -597,8 +597,8 @@ function parseRoute() {
   return { name: name || "pieces", id: id ? decodeURIComponent(id) : null };
 }
 const go = (h) => { location.hash = h; };
-/* A new piece, drop-off, collection, firing, blank order, library entry, collection, design or
- * inspiration that's left exactly as it was made
+/* Anything made with a New or Add button (a piece, drop-off, collection, firing, order, library
+ * entry, collection, design or inspiration) that's left exactly as it was made
  * (nothing typed, picked or photographed) is removed on the way out, so Add then Back leaves no
  * empty card behind. */
 const FRESH = new Map();   // id -> { coll, snap } for entries made with Add this session
@@ -1943,7 +1943,7 @@ document.addEventListener("click", async (e) => {
     }
     case "clay-open": {   // a row of the shrinkage table: that clay's entry, made the first time
       const mix = el.dataset.mix.split("|");
-      const it = libItems("clay").find((x) => sameMix(entryClays(x), mix) && !(x.glazes || []).length) || newRecord("library", { kind: "clay", name: "", clays: mix, glazes: [] });
+      const it = libItems("clay").find((x) => sameMix(entryClays(x), mix) && !(x.glazes || []).length) || fresh("library", newRecord("library", { kind: "clay", name: "", clays: mix, glazes: [] }));
       save(); go("#/lib/" + it.id); return;
     }
     case "layer-add": rec.layers = [...(rec.layers || []), { glaze: "", coats: 2 }]; changed(rec, true); return;
@@ -2014,13 +2014,13 @@ document.addEventListener("click", async (e) => {
     case "cone-pick": rec.cone = Object.assign({}, rec.cone, { [el.dataset.type]: el.dataset.val }); changed(rec, true); return;
     case "studio-open": {
       const name = el.dataset.val;
-      const st = studioOf(name) || newRecord("studios", { name, bisque: { by: "kg" }, glaze: { by: "kg" } });
+      const st = studioOf(name) || fresh("studios", newRecord("studios", { name, bisque: { by: "kg" }, glaze: { by: "kg" } }));
       save(); go("#/studio/" + st.id); return;
     }
     case "new-firing": { const f = fresh("firings", newRecord("firings", { date: today(), type: "bisque" })); save(); go("#/firing/" + f.id); return; }
     case "new-design": { const d = fresh("designs", newRecord("designs", { status: "concept" })); save(); go("#/design/" + d.id); return; }
     case "new-insp": { const x = fresh("insps", newRecord("insps", { tags: [] })); save(); go("#/insp/" + x.id); return; }
-    case "design-from-insp": { const d = newRecord("designs", { status: "concept", inspId: ROUTE.id }); save(); go("#/design/" + d.id); return; }
+    case "design-from-insp": { const d = fresh("designs", newRecord("designs", { status: "concept", inspId: ROUTE.id })); save(); go("#/design/" + d.id); return; }
     case "swipe-delete": return deleteRecord(el.dataset.coll, el.dataset.id);
     case "piece-filter": PIECE_FILTER = el.dataset.val; render(true); return;
     case "piece-tag": PIECE_TAG = PIECE_TAG === el.dataset.val ? null : el.dataset.val; render(true); return;
@@ -2032,7 +2032,7 @@ document.addEventListener("click", async (e) => {
     case "new-purchase": {   // most orders repeat the last one, so start from a copy of it
       const last = lastOrder();
       const b = newRecord("purchases", Object.assign({ date: today(), items: [{ kind: "clay" }] }, last ? orderCopy(last) : {}));
-      if (!last) fresh("purchases", b);
+      fresh("purchases", b);   // the copied details aren't something you entered: left as they are, it isn't kept
       save(); go("#/purchase/" + b.id);
       if (last) toast(t("buy.copied", { shop: last.store ? label("store", last.store) : dateText(last.date) }));
       return;
@@ -2550,7 +2550,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "42";
+const APP_VERSION = "43";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });
