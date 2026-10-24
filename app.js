@@ -11,7 +11,7 @@ const has = (v) => v !== null && v !== undefined && v !== "" && !isNaN(v);
 const fmt = (n, d = 1) => has(n) ? (Math.round(n * 10 ** d) / 10 ** d).toString() : "";
 const money = (n) => has(n) ? `${SETTINGS.currency}${Number(n).toFixed(2)}` : "";
 
-const TECHNIQUES = ["wheel", "hand", "coil", "slab", "pinch", "marbled"];
+const TECHNIQUES = ["wheel", "hand", "coil", "slab", "pinch"];   // marbled clay is a category tag: it can be thrown, slabbed or pinched
 /* Glaze is the piece with glaze on, before its firing; Final is the piece once fired. */
 const STAGES = ["wet", "bisque", "glazed", "final"];
 const METHODS = ["dip", "spray", "brush"];
@@ -597,7 +597,8 @@ function parseRoute() {
   return { name: name || "pieces", id: id ? decodeURIComponent(id) : null };
 }
 const go = (h) => { location.hash = h; };
-/* A new library entry, collection, design or inspiration that's left exactly as it was made
+/* A new piece, drop-off, collection, firing, blank order, library entry, collection, design or
+ * inspiration that's left exactly as it was made
  * (nothing typed, picked or photographed) is removed on the way out, so Add then Back leaves no
  * empty card behind. */
 const FRESH = new Map();   // id -> { coll, snap } for entries made with Add this session
@@ -1221,7 +1222,7 @@ const glazeItemColor = (x) => safeColor(x.it ? x.it.color : (libFor("glaze", x.n
 function pantoneChip(x, which, big) {
   const it = x.it || libFor(which, x.name), c = safeColor(it && it.color), pic = it && it.image;
   const block = pic && (which === "underglaze" || !c) ? img(pic) : "";
-  return `<span class="pchip${big ? "" : " sm"}"><span class="pc-sw"${!block && c ? ` style="background:${c}"` : ""}>${block}</span>${big ? `<b>${esc(glazeItemName(x))}</b>` : ""}</span>`;
+  return `<span class="pchip${big ? "" : " sm"}"><span class="pc-sw"${!block && c ? ` style="background:${c}"` : ""}>${block}</span><b>${esc(glazeItemName(x))}</b></span>`;
 }
 /** A design's picture: the piece (result, else after bisque, else the design), with its
  * underglazes and glazes as chips in the bottom corner. */
@@ -1229,7 +1230,7 @@ function designCard(d, big) {
   const main = (planPhoto(d, "final") || {}).ph || (planPhoto(d, "bisque") || {}).ph || d.image;
   const chips = [...planItems(d, "underglaze").map((x) => pantoneChip(x, "underglaze", big)), ...planItems(d, "glaze").map((x) => pantoneChip(x, "glaze", big))];
   if (!main && !chips.length) return "";
-  return `<div class="dcard${big ? " big" : ""}">${main ? img(main, "", !big) : ""}${chips.length ? `<div class="pchips">${chips.slice(0, big ? 8 : 4).join("")}</div>` : ""}</div>`;
+  return `<div class="dcard${big ? " big" : ""}">${main ? img(main, "", !big) : ""}${chips.length ? `<div class="pchips">${chips.slice(0, big ? 6 : 3).join("")}</div>` : ""}</div>`;
 }
 function planBlock(d) {
   const step = (n, title, body) => `<div class="plan-step"><b>${n} · ${title}</b>${body}</div>`;
@@ -1887,7 +1888,7 @@ document.addEventListener("click", async (e) => {
       save(); render(true); return;
     }
     case "list-remove": listRemove(el.dataset.list, el.dataset.val); save(); render(true); return;
-    case "new-piece": { const p = newRecord("pieces", { started: today(), unit: SETTINGS.unit }); save(); go("#/piece/" + p.id); return; }
+    case "new-piece": { const p = fresh("pieces", newRecord("pieces", { started: today(), unit: SETTINGS.unit })); save(); go("#/piece/" + p.id); return; }
     case "lib-tabs": openSheet({ kind: "libTabs" }); return;
     case "lib-make-kind": {
       const v = (($("#lib-kind-name") || {}).value || "").trim();
@@ -1978,12 +1979,12 @@ document.addEventListener("click", async (e) => {
     case "new-drop": {
       const last = tripsSorted()[0], studio = (last && last.studio) || listValues("studios")[0] || "";
       const cone = {}; for (const ty of TRIP_TYPES) cone[ty] = conesUsed(ty)[0] || "";   // the usual cones, ready to change
-      const tr = newRecord("trips", { kind: "drop", date: today(), studio, cone, items: [] });
+      const tr = fresh("trips", newRecord("trips", { kind: "drop", date: today(), studio, cone, items: [] }));
       save(); go("#/trip/" + tr.id); return;
     }
     case "new-collect": {
       const waiting = atStudio(), where = [...new Set(waiting.map((w) => w.drop.studio))];
-      const tr = newRecord("trips", { kind: "collect", date: today(), studio: where.length === 1 ? where[0] : ((tripsSorted()[0] || {}).studio || ""), items: [] });
+      const tr = fresh("trips", newRecord("trips", { kind: "collect", date: today(), studio: where.length === 1 ? where[0] : ((tripsSorted()[0] || {}).studio || ""), items: [] }));
       save(); go("#/trip/" + tr.id);
       if (waiting.length) setTimeout(() => openSheet({ kind: "pickCollect", id: tr.id }), 60);
       return;
@@ -2016,7 +2017,7 @@ document.addEventListener("click", async (e) => {
       const st = studioOf(name) || newRecord("studios", { name, bisque: { by: "kg" }, glaze: { by: "kg" } });
       save(); go("#/studio/" + st.id); return;
     }
-    case "new-firing": { const f = newRecord("firings", { date: today(), type: "bisque" }); save(); go("#/firing/" + f.id); return; }
+    case "new-firing": { const f = fresh("firings", newRecord("firings", { date: today(), type: "bisque" })); save(); go("#/firing/" + f.id); return; }
     case "new-design": { const d = fresh("designs", newRecord("designs", { status: "concept" })); save(); go("#/design/" + d.id); return; }
     case "new-insp": { const x = fresh("insps", newRecord("insps", { tags: [] })); save(); go("#/insp/" + x.id); return; }
     case "design-from-insp": { const d = newRecord("designs", { status: "concept", inspId: ROUTE.id }); save(); go("#/design/" + d.id); return; }
@@ -2031,6 +2032,7 @@ document.addEventListener("click", async (e) => {
     case "new-purchase": {   // most orders repeat the last one, so start from a copy of it
       const last = lastOrder();
       const b = newRecord("purchases", Object.assign({ date: today(), items: [{ kind: "clay" }] }, last ? orderCopy(last) : {}));
+      if (!last) fresh("purchases", b);
       save(); go("#/purchase/" + b.id);
       if (last) toast(t("buy.copied", { shop: last.store ? label("store", last.store) : dateText(last.date) }));
       return;
@@ -2548,7 +2550,7 @@ async function onImport(input) {
 }
 
 // ---------- start
-const APP_VERSION = "41";
+const APP_VERSION = "42";
 setLang(SETTINGS.lang);
 $("#back").addEventListener("click", () => { if (history.length > 1) history.back(); else go("#/" + (TAB_OF[ROUTE.name] || "pieces")); });
 $("#gear").addEventListener("click", () => { if (ROUTE.name === "more") history.back(); else go("#/more"); });

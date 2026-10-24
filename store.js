@@ -44,6 +44,10 @@ function migrate(db) {
       ? [{ kind: b.kind || "clay", name: b.name || "", grams: b.grams, cost: b.cost }] : [];
   }
   for (const p of Object.values(db.pieces || {})) {
+    if ((p.technique || []).includes("marbled")) {   // marbled clay is a category tag now, not a technique
+      p.technique = p.technique.filter((x) => x !== "marbled");
+      p.tags = [...new Set([...(p.tags || []), "marbled"])];
+    }
     if (p.wet && p.wet.dryNotes && !p.wet.dryMoved) {   // drying notes now live in the piece's notes
       p.notes = [p.notes, p.wet.dryNotes].filter(Boolean).join("\n");
       p.wet.dryMoved = true;

@@ -597,16 +597,16 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .fab .btn.fab-plus svg { width: 22px; height: 22px; }
 
 /* a design: the piece, with its underglazes and glazes as Pantone-style chips in the corner */
-.dcard { position: relative; width: 100%; height: 100%; aspect-ratio: 1; overflow: hidden; background: var(--soft); }
+.dcard { position: relative; width: 100%; height: 100%; aspect-ratio: 1; overflow: hidden; background: var(--soft); container-type: inline-size; }
 .dcard > img { width: 100%; height: 100%; }
 .dcard.big { max-height: 70vh; }
-.pchips { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 5px; flex-wrap: wrap-reverse; justify-content: flex-end; max-width: 80%; }
-.dcard.big .pchips { right: 14px; bottom: 14px; gap: 8px; }
-.pchip { display: flex; flex-direction: column; width: 62px; background: #fff; padding: 4px 4px 0; border-radius: 3px; box-shadow: 0 2px 8px rgba(20, 16, 12, .28); }
+.pchips { position: absolute; right: 4cqw; bottom: 4cqw; display: flex; gap: 2.4cqw; flex-wrap: wrap-reverse; justify-content: flex-end; max-width: 92cqw; }
+
+.pchip { display: flex; flex-direction: column; width: 27cqw; background: #fff; padding: 1.6cqw 1.6cqw 0; border-radius: 1cqw; box-shadow: 0 2px 8px rgba(20, 16, 12, .28); }
 .pchip .pc-sw { display: block; aspect-ratio: 1; background: repeating-linear-gradient(45deg, #eee5d6, #eee5d6 5px, #ddd0b9 5px, #ddd0b9 10px); overflow: hidden; }
 .pchip .pc-sw img { width: 100%; height: 100%; }
-.pchip b { display: block; padding: 4px 1px 5px; font-size: 9px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: #1c1612; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pchip.sm { width: 24px; padding: 2px 2px 5px; border-radius: 2px; }
+.pchip b { display: block; padding: 1.6cqw .4cqw 2cqw; font-size: 2.9cqw; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: #1c1612; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pchip.sm b { font-size: 3.6cqw; }
 .chip .pchip.sm { width: 16px; padding: 1px 1px 3px; box-shadow: 0 0 0 1px var(--line); margin-right: 2px; }
 .tile .dcard { aspect-ratio: auto; }
 .mini .dcard { aspect-ratio: auto; }
@@ -629,4 +629,5 @@ img, [data-hold] { -webkit-touch-callout: none; -webkit-user-select: none; user-
 .size-btn[aria-pressed="true"] { border-color: #f4efe6; }
 .sketch-sizes .btn { background: transparent; color: #f4efe6; border-color: #4a433b; min-height: 36px; }
 .sketch-sizes .btn:first-of-type { margin-left: auto; }
-.dcard.big .pchip { width: 52px; }
+
+.chip .pchip b { display: none; }
